@@ -17,8 +17,8 @@ Nothing! By downloading the **Self-Contained Release**, all necessary .NET runti
 ## Downloading
 
 1. Go to the [Releases page](../../releases) on this GitHub repository.
-2. Download the latest `TerrariaRPC.zip` from the Assets section.
-3. Extract the `.zip` anywhere on your computer (e.g., in a dedicated `TerrariaRPC` folder).
+2. Download the latest `TerrariaRPC.exe` from the Assets section.
+3. Place the `TerrariaRPC.exe` anywhere on your computer (e.g., in a dedicated `TerrariaRPC` folder, or you can just place it beside Terraria.exe).
 
 ## How to Use
 
