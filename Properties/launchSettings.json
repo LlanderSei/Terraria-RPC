@@ -1,0 +1,15 @@
+{
+  "profiles": {
+    "GUI": {
+      "commandName": "Project",
+      "commandLineArgs": ""
+    },
+    "Headless": {
+      "commandName": "Project",
+      "commandLineArgs": "--no-gui",
+      "environmentVariables": {
+        "TERRARIARPC_HEADLESS": "1"
+      }
+    }
+  }
+}

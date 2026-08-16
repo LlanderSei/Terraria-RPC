@@ -1,0 +1,65 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="TerrariaRPC.MainWindow"
+        Title="Terraria RPC Configuration"
+        MinWidth="400" MinHeight="500"
+        Width="600" Height="650"
+        WindowStartupLocation="CenterScreen"
+        Icon="avares://TerrariaRPC/Assets/icon.png">
+    <ScrollViewer>
+        <StackPanel Margin="20" Spacing="20">
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Text="Template" FontWeight="Bold" FontSize="18" VerticalAlignment="Center"/>
+          <Button Grid.Column="1"
+                  Content="? Available Variables"
+                  FontSize="12"
+                  Padding="8,4"
+                  Click="OnVariablesClick"/>
+        </Grid>
+            
+            <Grid ColumnDefinitions="200,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" Margin="0,0,0,20">
+                <!-- Line 1 -->
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="Line 1:" VerticalAlignment="Center" Margin="0,0,0,10"/>
+                <TextBox Name="Line1Box" Grid.Row="0" Grid.Column="1" Margin="0,0,0,10"/>
+                
+                <!-- Line 2 -->
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="Line 2:" VerticalAlignment="Center" Margin="0,0,0,10"/>
+                <TextBox Name="Line2Box" Grid.Row="1" Grid.Column="1" Margin="0,0,0,10"/>
+                
+                <!-- Small Image & Text Style -->
+                <TextBlock Grid.Row="3" Grid.Column="0" Text="Small Image &amp; Text Style:" VerticalAlignment="Center" Margin="0,0,0,10"/>
+                <ComboBox Name="SmallImageStyleBox" Grid.Row="3" Grid.Column="1" HorizontalAlignment="Stretch" Margin="0,0,0,10" SelectionChanged="OnSmallImageStyleChanged">
+                    <ComboBoxItem Content="Holding Item's Icon &amp; Name"/>
+                    <ComboBoxItem Content="Custom"/>
+                </ComboBox>
+
+                <TextBlock Name="SmallImageCustomUrlLabel" Grid.Row="4" Grid.Column="0" Text="Image:" VerticalAlignment="Center" Margin="20,0,0,10" IsVisible="False"/>
+                <TextBox Name="SmallImageCustomUrlBox" Grid.Row="4" Grid.Column="1" Margin="0,0,0,10" IsVisible="False"/>
+                
+                <TextBlock Name="SmallImageCustomTextLabel" Grid.Row="5" Grid.Column="0" Text="Text:" VerticalAlignment="Center" Margin="20,0,0,10" IsVisible="False"/>
+                <TextBox Name="SmallImageCustomTextBox" Grid.Row="5" Grid.Column="1" Margin="0,0,0,10" IsVisible="False"/>
+
+                <!-- Large Image & Text Style -->
+                <TextBlock Grid.Row="6" Grid.Column="0" Text="Large Image &amp; Text Style:" VerticalAlignment="Center" Margin="0,0,0,10"/>
+                <ComboBox Name="LargeImageStyleBox" Grid.Row="6" Grid.Column="1" HorizontalAlignment="Stretch" Margin="0,0,0,10" SelectionChanged="OnLargeImageStyleChanged">
+                    <ComboBoxItem Content="Image: Evil-based Tree or Rotating Selected Special/Secret Seed Tree Icons, Text: World Difficulty, Special Seed List and Amount of Secret Seeds"/>
+                    <ComboBoxItem Content="Custom"/>
+                </ComboBox>
+
+                <TextBlock Name="LargeImageCustomUrlLabel" Grid.Row="7" Grid.Column="0" Text="Image:" VerticalAlignment="Center" Margin="20,0,0,10" IsVisible="False"/>
+                <TextBox Name="LargeImageCustomUrlBox" Grid.Row="7" Grid.Column="1" Margin="0,0,0,10" IsVisible="False"/>
+                
+                <TextBlock Name="LargeImageCustomTextLabel" Grid.Row="8" Grid.Column="0" Text="Text:" VerticalAlignment="Center" Margin="20,0,0,10" IsVisible="False"/>
+                <TextBox Name="LargeImageCustomTextBox" Grid.Row="8" Grid.Column="1" Margin="0,0,0,10" IsVisible="False"/>
+            </Grid>
+
+            <TextBlock Text="Discord" FontWeight="Bold" FontSize="18" />
+            <Grid ColumnDefinitions="200,*" RowDefinitions="Auto">
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="Client ID:" VerticalAlignment="Center"/>
+                <TextBox Name="ClientIdBox" Grid.Row="0" Grid.Column="1" />
+            </Grid>
+            
+            <Button Content="Save Configuration" Click="OnSaveClick" HorizontalAlignment="Right" Margin="0,10,0,0"/>
+        </StackPanel>
+    </ScrollViewer>
+</Window>

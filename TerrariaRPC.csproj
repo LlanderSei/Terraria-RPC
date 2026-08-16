@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- Must be x86 to match Terraria's 32-bit process for ClrMD memory reading -->
+    <PlatformTarget>x86</PlatformTarget>
+    <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
+    <Version>0.1.1</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Exclude scratch sub-projects from being compiled into this project -->
+    <Compile Remove="DumpBiomeFields\**" />
+    <None Remove="DumpBiomeFields\**" />
+    <EmbeddedResource Remove="DumpBiomeFields\**" />
+    <Compile Remove="scratch\**" />
+    <None Remove="scratch\**" />
+    <EmbeddedResource Remove="scratch\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.1.1" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.1" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.1" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.1" />
+    <PackageReference Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.3">
+      <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
+      <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="DiscordRichPresence" Version="1.6.1.70" />
+    <PackageReference Include="Microsoft.Diagnostics.Runtime" Version="4.0.732401" />
+    <PackageReference Include="Reloaded.Memory.Sigscan" Version="3.1.9" />
+  </ItemGroup>
+</Project>
