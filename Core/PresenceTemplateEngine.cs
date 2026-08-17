@@ -9,6 +9,13 @@ namespace TerrariaRPC.Core
     {
       if (string.IsNullOrEmpty(template)) return "";
 
+      string bossOrEventText = "";
+      if (state.HasActiveBoss) bossOrEventText = state.ActiveBossText;
+      else if (state.HasActiveEvent) bossOrEventText = state.ActiveEventText;
+      else if (state.HasActiveNonProgressiveEvent) bossOrEventText = state.ActiveNonProgressiveEventName;
+      else if (state.HasActivePeacefulEvent) bossOrEventText = state.ActivePeacefulEventName;
+      else if (state.HasActiveWeather) bossOrEventText = state.ActiveWeatherName;
+
       var replacements = new Dictionary<string, string>
       {
         // World
@@ -31,6 +38,14 @@ namespace TerrariaRPC.Core
         { "{{PlayerAtk}}",                      state.PlayerAtk },
         { "{{PlayerDef}}",                      state.PlayerDef.ToString() },
         { "{{PlayerItemHeld}}",                 state.PlayerItemHeld },
+
+        // Active Boss & Event
+        { "{{ActiveBoss}}",                     state.ActiveBossName },
+        { "{{ActiveBossHp}}",                   state.ActiveBossHp.ToString() },
+        { "{{ActiveBossMaxHp}}",                state.ActiveBossMaxHp.ToString() },
+        { "{{ActiveEvent}}",                    state.ActiveEventName },
+        { "{{ActiveEventProgress}}",            state.ActiveEventProgress >= 0 ? state.ActiveEventProgress.ToString() : "" },
+        { "{{ActiveBossOrEventText}}",          bossOrEventText }
       };
 
       string result = template;

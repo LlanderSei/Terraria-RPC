@@ -100,7 +100,7 @@ class Program
   /// </summary>
   private static void RpcLoop()
   {
-    var iconManager  = new SeedIconManager();
+    var iconManager  = new IconManager();
     var memoryReader = new TerrariaMemoryReader();
     using var rpcManager = new DiscordRpcManager(iconManager);
 
@@ -131,7 +131,7 @@ class Program
   /// </summary>
   private static void HeadlessRpcLoop()
   {
-    var iconManager  = new SeedIconManager();
+    var iconManager  = new IconManager();
     var memoryReader = new TerrariaMemoryReader();
     using var rpcManager = new DiscordRpcManager(iconManager);
 

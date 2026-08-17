@@ -31,6 +31,14 @@ public partial class VariablesDialog : Window
     ("{{PlayerMp}}",              "Current MP",                                                               "#a5d6a7"),
     ("{{PlayerMaxMp}}",           "Maximum MP (Mana Crystals, accessories)",                                  "#a5d6a7"),
     ("{{PlayerItemHeld}}",        "Name of the currently held item (blank if air/nothing)",                   "#a5d6a7"),
+    ("---", "", ""),
+    // ── Boss & Events ──────────────────────────────────────────────────────
+    ("{{ActiveBoss}}",            "Name of active boss (e.g. Eye of Cthulhu)",                                "#ce93d8"),
+    ("{{ActiveBossHp}}",          "Current HP of active boss or pillar shield/hp",                            "#ce93d8"),
+    ("{{ActiveBossMaxHp}}",       "Max HP of active boss or pillar shield/hp",                                "#ce93d8"),
+    ("{{ActiveEvent}}",           "Name of active event (e.g. Goblin Invasion)",                              "#ce93d8"),
+    ("{{ActiveEventProgress}}",   "Completion percentage of active event (e.g. 90)",                          "#ce93d8"),
+    ("{{ActiveBossOrEventText}}", "Formatted text of current priority boss, event, or weather",               "#ce93d8"),
   ];
 
   public VariablesDialog()

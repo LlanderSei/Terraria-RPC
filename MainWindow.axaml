@@ -2,22 +2,22 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="TerrariaRPC.MainWindow"
         Title="Terraria RPC Configuration"
-        MinWidth="400" MinHeight="500"
-        Width="600" Height="650"
+        MinWidth="400" MinHeight="550"
+        Width="640" Height="720"
         WindowStartupLocation="CenterScreen"
         Icon="avares://TerrariaRPC/Assets/icon.png">
     <ScrollViewer>
-        <StackPanel Margin="20" Spacing="20">
-        <Grid ColumnDefinitions="*,Auto">
-          <TextBlock Text="Template" FontWeight="Bold" FontSize="18" VerticalAlignment="Center"/>
-          <Button Grid.Column="1"
-                  Content="? Available Variables"
-                  FontSize="12"
-                  Padding="8,4"
-                  Click="OnVariablesClick"/>
-        </Grid>
+        <StackPanel Margin="20" Spacing="16">
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Text="Template" FontWeight="Bold" FontSize="18" VerticalAlignment="Center"/>
+                <Button Grid.Column="1"
+                        Content="? Available Variables"
+                        FontSize="12"
+                        Padding="8,4"
+                        Click="OnVariablesClick"/>
+            </Grid>
             
-            <Grid ColumnDefinitions="200,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" Margin="0,0,0,20">
+            <Grid ColumnDefinitions="180,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" Margin="0,0,0,10">
                 <!-- Line 1 -->
                 <TextBlock Grid.Row="0" Grid.Column="0" Text="Line 1:" VerticalAlignment="Center" Margin="0,0,0,10"/>
                 <TextBox Name="Line1Box" Grid.Row="0" Grid.Column="1" Margin="0,0,0,10"/>
@@ -27,25 +27,58 @@
                 <TextBox Name="Line2Box" Grid.Row="1" Grid.Column="1" Margin="0,0,0,10"/>
                 
                 <!-- Small Image & Text Style -->
-                <TextBlock Grid.Row="3" Grid.Column="0" Text="Small Image &amp; Text Style:" VerticalAlignment="Center" Margin="0,0,0,10"/>
-                <ComboBox Name="SmallImageStyleBox" Grid.Row="3" Grid.Column="1" HorizontalAlignment="Stretch" Margin="0,0,0,10" SelectionChanged="OnSmallImageStyleChanged">
-                    <ComboBoxItem Content="Holding Item's Icon &amp; Name"/>
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="Small Image &amp; Text Style:" VerticalAlignment="Center" Margin="0,0,0,10"/>
+                <ComboBox Name="SmallImageStyleBox" Grid.Row="2" Grid.Column="1" HorizontalAlignment="Stretch" Margin="0,0,0,10" SelectionChanged="OnSmallImageStyleChanged">
+                    <ComboBoxItem Content="Customize icon/text rotation based on checkboxes below"/>
                     <ComboBoxItem Content="Custom"/>
                 </ComboBox>
 
+                <!-- Small Image Rotation Checkbox Panel (Row 3) -->
+                <StackPanel Name="SmallRotationPanel" Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2" Margin="10,0,0,10" Spacing="6">
+                    <CheckBox Name="SmallItemEnabledBox" Content="Holding Item's Icon &amp; Name" IsChecked="True"/>
+                    <CheckBox Name="SmallBossEventEnabledBox" Content="Active Boss and Event (Priority: Boss &gt; Events &gt; Non-progressive Events &gt; Peaceful &gt; Weather)" IsCheckedChanged="OnBossEventCheckChanged"/>
+                    
+                    <!-- Sub-panel for Exclude / Include checkboxes (2 columns) -->
+                    <StackPanel Name="BossEventSubPanel" Margin="20,4,0,4" Spacing="6" IsVisible="False">
+                        <Grid ColumnDefinitions="*,*">
+                            <!-- Column 0: Excludes -->
+                            <StackPanel Grid.Column="0" Spacing="4">
+                                <TextBlock Text="Excludes (Skip category):" FontWeight="SemiBold" FontSize="12" Margin="0,0,0,2"/>
+                                <CheckBox Name="ExcludeBossBox" Content="Exclude Boss"/>
+                                <CheckBox Name="ExcludeEventsBox" Content="Exclude Events (Goblin Army, etc.)" IsCheckedChanged="OnExcludeEventsChanged"/>
+                                <CheckBox Name="ExcludeNonProgressiveBox" Content="Exclude Non-progressive Events" IsCheckedChanged="OnExcludeNonProgressiveChanged"/>
+                                <CheckBox Name="ExcludePeacefulBox" Content="Exclude Peaceful Events" IsCheckedChanged="OnExcludePeacefulChanged"/>
+                                <CheckBox Name="ExcludeWeatherBox" Content="Exclude Weather" IsCheckedChanged="OnExcludeWeatherChanged"/>
+                            </StackPanel>
+
+                            <!-- Column 1: Includes to Rotation -->
+                            <StackPanel Grid.Column="1" Spacing="4">
+                                <TextBlock Text="Includes (Add to rotation cycle):" FontWeight="SemiBold" FontSize="12" Margin="0,0,0,2"/>
+                                <TextBlock Text="(Boss is top priority by default)" FontSize="11" Opacity="0.6" Margin="0,2,0,4"/>
+                                <CheckBox Name="IncludeEventsBox" Content="Include Events to the rotation" IsCheckedChanged="OnIncludeEventsChanged"/>
+                                <CheckBox Name="IncludeNonProgressiveBox" Content="Include Non-progressive Events to the rotation" IsCheckedChanged="OnIncludeNonProgressiveChanged"/>
+                                <CheckBox Name="IncludePeacefulBox" Content="Include Peaceful Events to the rotation" IsCheckedChanged="OnIncludePeacefulChanged"/>
+                                <CheckBox Name="IncludeWeatherBox" Content="Include Weather to the rotation" IsCheckedChanged="OnIncludeWeatherChanged"/>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Custom Small Image & Text fields (Row 4 & 5) -->
                 <TextBlock Name="SmallImageCustomUrlLabel" Grid.Row="4" Grid.Column="0" Text="Image:" VerticalAlignment="Center" Margin="20,0,0,10" IsVisible="False"/>
                 <TextBox Name="SmallImageCustomUrlBox" Grid.Row="4" Grid.Column="1" Margin="0,0,0,10" IsVisible="False"/>
                 
                 <TextBlock Name="SmallImageCustomTextLabel" Grid.Row="5" Grid.Column="0" Text="Text:" VerticalAlignment="Center" Margin="20,0,0,10" IsVisible="False"/>
                 <TextBox Name="SmallImageCustomTextBox" Grid.Row="5" Grid.Column="1" Margin="0,0,0,10" IsVisible="False"/>
 
-                <!-- Large Image & Text Style -->
+                <!-- Large Image & Text Style (Row 6) -->
                 <TextBlock Grid.Row="6" Grid.Column="0" Text="Large Image &amp; Text Style:" VerticalAlignment="Center" Margin="0,0,0,10"/>
                 <ComboBox Name="LargeImageStyleBox" Grid.Row="6" Grid.Column="1" HorizontalAlignment="Stretch" Margin="0,0,0,10" SelectionChanged="OnLargeImageStyleChanged">
                     <ComboBoxItem Content="Image: Evil-based Tree or Rotating Selected Special/Secret Seed Tree Icons, Text: World Difficulty, Special Seed List and Amount of Secret Seeds"/>
                     <ComboBoxItem Content="Custom"/>
                 </ComboBox>
 
+                <!-- Custom Large Image & Text fields (Row 7 & 8) -->
                 <TextBlock Name="LargeImageCustomUrlLabel" Grid.Row="7" Grid.Column="0" Text="Image:" VerticalAlignment="Center" Margin="20,0,0,10" IsVisible="False"/>
                 <TextBox Name="LargeImageCustomUrlBox" Grid.Row="7" Grid.Column="1" Margin="0,0,0,10" IsVisible="False"/>
                 
@@ -54,7 +87,7 @@
             </Grid>
 
             <TextBlock Text="Discord" FontWeight="Bold" FontSize="18" />
-            <Grid ColumnDefinitions="200,*" RowDefinitions="Auto">
+            <Grid ColumnDefinitions="180,*" RowDefinitions="Auto">
                 <TextBlock Grid.Row="0" Grid.Column="0" Text="Client ID:" VerticalAlignment="Center"/>
                 <TextBox Name="ClientIdBox" Grid.Row="0" Grid.Column="1" />
             </Grid>

@@ -79,6 +79,33 @@ namespace TerrariaRPC.Core
 
     // Added: UI State Name for disambiguating menuMode 888
     public string UIStateName { get; set; } = "";
+
+    // ── Active Boss Info ──────────────────────────────────────────────────
+    public bool HasActiveBoss => !string.IsNullOrEmpty(ActiveBossName);
+    public string ActiveBossName { get; set; } = "";
+    public int ActiveBossHp { get; set; } = 0;
+    public int ActiveBossMaxHp { get; set; } = 0;
+    public string ActiveBossText => HasActiveBoss ? $"Fighting: {ActiveBossName} ({ActiveBossHp}/{ActiveBossMaxHp})" : "";
+
+    // ── Active Progressive Event Info ──────────────────────────────────────
+    public bool HasActiveEvent => !string.IsNullOrEmpty(ActiveEventName);
+    public string ActiveEventName { get; set; } = "";
+    public int ActiveEventProgress { get; set; } = -1; // -1 if non-% (e.g. Slime Rain)
+    public string ActiveEventText => HasActiveEvent
+      ? (ActiveEventProgress >= 0 ? $"Clearing: {ActiveEventName} ({ActiveEventProgress}%)" : $"Clearing: {ActiveEventName}")
+      : "";
+
+    // ── Non-Progressive Event Info ─────────────────────────────────────────
+    public bool HasActiveNonProgressiveEvent => !string.IsNullOrEmpty(ActiveNonProgressiveEventName);
+    public string ActiveNonProgressiveEventName { get; set; } = ""; // e.g. "Blood Moon", "Solar Eclipse"
+
+    // ── Peaceful Event Info ────────────────────────────────────────────────
+    public bool HasActivePeacefulEvent => !string.IsNullOrEmpty(ActivePeacefulEventName);
+    public string ActivePeacefulEventName { get; set; } = ""; // e.g. "Party is occurring.", "Lantern Night is occurring"
+
+    // ── Weather Event Info ─────────────────────────────────────────────────
+    public bool HasActiveWeather => !string.IsNullOrEmpty(ActiveWeatherName);
+    public string ActiveWeatherName { get; set; } = ""; // e.g. "Rain", "Thunderstorm", "Sandstorm", "Windy Day"
   }
 
   public class TerrariaMemoryReader
@@ -94,10 +121,13 @@ namespace TerrariaRPC.Core
     private bool _isMultiplayerFlow = false;
 
     // Cached MethodTable addresses for fast type lookup — populated on first successful scan.
-    private ulong _mainTypeMT    = 0;
-    private ulong _worldGenTypeMT = 0;
-    private ulong _playerTypeMT  = 0;
-    private ulong _langTypeMT    = 0;
+    private ulong _mainTypeMT          = 0;
+    private ulong _worldGenTypeMT       = 0;
+    private ulong _playerTypeMT        = 0;
+    private ulong _langTypeMT          = 0;
+    private ulong _birthdayPartyTypeMT = 0;
+    private ulong _lanternNightTypeMT   = 0;
+    private ulong _sandstormTypeMT      = 0;
 
     public bool Attach()
     {
@@ -138,6 +168,7 @@ namespace TerrariaRPC.Core
         if (cached != null) return cached;
         // Cache miss (new process) — clear all MT caches and re-scan
         _mainTypeMT = _worldGenTypeMT = _playerTypeMT = _langTypeMT = 0;
+        _birthdayPartyTypeMT = _lanternNightTypeMT = _sandstormTypeMT = 0;
         cachedMT = 0;
       }
 
@@ -586,8 +617,7 @@ namespace TerrariaRPC.Core
                                : posIsUnderground ? "Underground"
                                : "";  // Surface/Sky → no prefix
 
-            // Biome name (priority order)
-            string biomeName;
+            string biomeName = "Forest";
             if      (inDungeon)     biomeName = "Dungeon";
             else if (inShimmer)     biomeName = "Aether";
             else if (inMeteor)      biomeName = "Meteorite";
@@ -601,7 +631,6 @@ namespace TerrariaRPC.Core
             else if (inUnderDesert) biomeName = "Desert";
             else if (inDesert)      biomeName = "Desert";
             else                    biomeName = "Forest";
-
             if (biomeName == "Forest" && !string.IsNullOrEmpty(depthPrefix))
             {
               CurrentState.Biome = depthPrefix; // Just "Underground" or "Cavern"
@@ -614,6 +643,9 @@ namespace TerrariaRPC.Core
             }
           }
         }
+
+        // ── Active Bosses & Events Detection ─────────────────────────────────
+        ScanBossesAndEvents(runtime, appDomain, mainType);
       }
       catch (Exception ex)
       {
@@ -739,6 +771,283 @@ namespace TerrariaRPC.Core
       {
         Logger.Info($"Screen:{CurrentState.Screen} World:\"{CurrentState.WorldName}\" Attached:{CurrentState.IsAttached}");
       }
+    }
+
+    private void ScanBossesAndEvents(ClrRuntime runtime, ClrAppDomain appDomain, ClrType mainType)
+    {
+      // Reset active entity states before scanning
+      CurrentState.ActiveBossName = "";
+      CurrentState.ActiveBossHp = 0;
+      CurrentState.ActiveBossMaxHp = 0;
+
+      CurrentState.ActiveEventName = "";
+      CurrentState.ActiveEventProgress = -1;
+
+      CurrentState.ActiveNonProgressiveEventName = "";
+      CurrentState.ActivePeacefulEventName = "";
+      CurrentState.ActiveWeatherName = "";
+
+      if (CurrentState.GameMenu || (CurrentState.Screen != GameScreen.InGameSinglePlayer && CurrentState.Screen != GameScreen.InGameMultiplayer)) return;
+
+      try
+      {
+        // 1. Scan Active Bosses from Main.npc
+        var npcField = mainType.StaticFields.FirstOrDefault(f => f.Name == "npc");
+        if (npcField != null)
+        {
+          ulong npcArrayAddr = npcField.Read<ulong>(appDomain);
+          if (npcArrayAddr != 0)
+          {
+            var npcArrayObj = runtime.Heap.GetObject(npcArrayAddr);
+            if (npcArrayObj.IsValid && npcArrayObj.IsArray)
+            {
+              int len = npcArrayObj.AsArray().Length;
+              string bestBossName = "";
+              int bestBossHp = 0;
+              int bestBossMaxHp = 0;
+              int highestMaxHp = 0;
+
+              for (int i = 0; i < len; i++)
+              {
+                var npcObj = npcArrayObj.AsArray().GetObjectValue(i);
+                if (!npcObj.IsValid) continue;
+
+                bool active = npcObj.ReadField<bool>("active");
+                if (!active) continue;
+
+                bool isBoss = npcObj.ReadField<bool>("boss");
+                int type = npcObj.ReadField<int>("type");
+
+                bool isPillar = type == 507 || type == 517 || type == 493 || type == 508;
+
+                if (isBoss || isPillar || IsKnownBossType(type))
+                {
+                  string typeName = GetNpcTypeName(runtime, appDomain, npcObj, type);
+                  if (string.IsNullOrEmpty(typeName)) continue;
+
+                  int life = npcObj.ReadField<int>("life");
+                  int lifeMax = npcObj.ReadField<int>("lifeMax");
+
+                  if (isPillar)
+                  {
+                    int shield = GetPillarShield(mainType, appDomain, type);
+                    int maxShield = GetPillarMaxShield(mainType, appDomain);
+
+                    if (shield > 0)
+                    {
+                      bestBossName = typeName;
+                      bestBossHp = shield;
+                      bestBossMaxHp = maxShield > 0 ? maxShield : shield;
+                      break;
+                    }
+                    else
+                    {
+                      bestBossName = typeName;
+                      bestBossHp = life;
+                      bestBossMaxHp = lifeMax;
+                      break;
+                    }
+                  }
+
+                  if (lifeMax > highestMaxHp)
+                  {
+                    highestMaxHp = lifeMax;
+                    bestBossName = typeName;
+                    bestBossHp = life;
+                    bestBossMaxHp = lifeMax;
+                  }
+                }
+              }
+
+              if (!string.IsNullOrEmpty(bestBossName))
+              {
+                CurrentState.ActiveBossName = bestBossName;
+                CurrentState.ActiveBossHp = bestBossHp;
+                CurrentState.ActiveBossMaxHp = bestBossMaxHp;
+              }
+            }
+          }
+        }
+
+        // 2. Progressive Events (Invasion, Slime Rain, Pumpkin/Frost Moon)
+        int invasionType = mainType.StaticFields.FirstOrDefault(f => f.Name == "invasionType")?.Read<int>(appDomain) ?? 0;
+        int invasionProgress = mainType.StaticFields.FirstOrDefault(f => f.Name == "invasionProgress")?.Read<int>(appDomain) ?? 0;
+        int invasionProgressMax = mainType.StaticFields.FirstOrDefault(f => f.Name == "invasionProgressMax")?.Read<int>(appDomain) ?? 0;
+
+        if (invasionType > 0)
+        {
+          string invName = invasionType switch
+          {
+            1 => "Goblin Invasion",
+            2 => "Frost Legion",
+            3 => "Pirate Invasion",
+            4 => "Martian Madness",
+            _ => "Invasion"
+          };
+          int pct = invasionProgressMax > 0 ? (int)(invasionProgress * 100.0 / invasionProgressMax) : 0;
+          CurrentState.ActiveEventName = invName;
+          CurrentState.ActiveEventProgress = Math.Min(100, Math.Max(0, pct));
+        }
+        else if (mainType.StaticFields.FirstOrDefault(f => f.Name == "slimeRain")?.Read<bool>(appDomain) ?? false)
+        {
+          CurrentState.ActiveEventName = "Slime Rain";
+          CurrentState.ActiveEventProgress = -1;
+        }
+        else if (mainType.StaticFields.FirstOrDefault(f => f.Name == "pumpkinMoon")?.Read<bool>(appDomain) ?? false)
+        {
+          CurrentState.ActiveEventName = "Pumpkin Moon";
+          CurrentState.ActiveEventProgress = -1;
+        }
+        else if (mainType.StaticFields.FirstOrDefault(f => f.Name == "snowMoon")?.Read<bool>(appDomain) ?? false)
+        {
+          CurrentState.ActiveEventName = "Frost Moon";
+          CurrentState.ActiveEventProgress = -1;
+        }
+
+        // 3. Non-Progressive Events (Blood Moon, Solar Eclipse)
+        if (mainType.StaticFields.FirstOrDefault(f => f.Name == "bloodMoon")?.Read<bool>(appDomain) ?? false)
+        {
+          CurrentState.ActiveNonProgressiveEventName = "Blood Moon";
+        }
+        else if (mainType.StaticFields.FirstOrDefault(f => f.Name == "eclipse")?.Read<bool>(appDomain) ?? false)
+        {
+          CurrentState.ActiveNonProgressiveEventName = "Solar Eclipse";
+        }
+
+        // 4. Peaceful Events (Party, Lantern Night)
+        var partyType = TryGetCachedType(runtime, ref _birthdayPartyTypeMT, "Terraria.GameContent.Events.BirthdayParty");
+        if (partyType != null)
+        {
+          bool partyUp = partyType.StaticFields.FirstOrDefault(f => f.Name == "PartyIsUp")?.Read<bool>(appDomain) ?? false;
+          if (partyUp) CurrentState.ActivePeacefulEventName = "Party is occurring.";
+        }
+        if (string.IsNullOrEmpty(CurrentState.ActivePeacefulEventName))
+        {
+          var lanternType = TryGetCachedType(runtime, ref _lanternNightTypeMT, "Terraria.GameContent.Events.LanternNight");
+          if (lanternType != null)
+          {
+            bool lanternsUp = lanternType.StaticFields.FirstOrDefault(f => f.Name == "LanternsUp")?.Read<bool>(appDomain) ?? false;
+            if (lanternsUp) CurrentState.ActivePeacefulEventName = "Lantern Night is occurring";
+          }
+        }
+
+        // 5. Weather Events (Rain, Thunderstorm, Sandstorm, Windy Day)
+        var sandstormType = TryGetCachedType(runtime, ref _sandstormTypeMT, "Terraria.GameContent.Events.Sandstorm");
+        bool isSandstorm = false;
+        if (sandstormType != null)
+        {
+          isSandstorm = sandstormType.StaticFields.FirstOrDefault(f => f.Name == "Happening")?.Read<bool>(appDomain) ?? false;
+        }
+
+        if (isSandstorm)
+        {
+          CurrentState.ActiveWeatherName = "Sandstorm";
+        }
+        else
+        {
+          bool isRaining = mainType.StaticFields.FirstOrDefault(f => f.Name == "raining")?.Read<bool>(appDomain) ?? false;
+          float maxRaining = mainType.StaticFields.FirstOrDefault(f => f.Name == "maxRaining")?.Read<float>(appDomain) ?? 0f;
+          float windSpeed = mainType.StaticFields.FirstOrDefault(f => f.Name == "windSpeedCurrent")?.Read<float>(appDomain) ?? 0f;
+
+          if (isRaining)
+          {
+            if (maxRaining > 0.6f && Math.Abs(windSpeed) > 0.4f)
+              CurrentState.ActiveWeatherName = "Thunderstorm";
+            else
+              CurrentState.ActiveWeatherName = "Rain";
+          }
+          else if (Math.Abs(windSpeed) >= 0.4f)
+          {
+            CurrentState.ActiveWeatherName = "Windy Day";
+          }
+        }
+      }
+      catch (Exception ex)
+      {
+        Logger.Warn($"Failed to scan bosses and events: {ex.Message}");
+      }
+    }
+
+    private static bool IsKnownBossType(int type)
+    {
+      return type == 4 || type == 13 || type == 14 || type == 15 || type == 35 ||
+             type == 50 || type == 113 || type == 125 || type == 126 || type == 127 ||
+             type == 134 || type == 222 || type == 245 || type == 262 || type == 266 ||
+             type == 370 || type == 396 || type == 397 || type == 398 || type == 439 ||
+             type == 551 || type == 657 || type == 668;
+    }
+
+    private string GetNpcTypeName(ClrRuntime runtime, ClrAppDomain appDomain, ClrObject npcObj, int type)
+    {
+      try
+      {
+        var field = npcObj.Type.Fields.FirstOrDefault(f => f.Name == "GivenOrTypeName");
+        if (field != null)
+        {
+          ulong addr = field.Read<ulong>(npcObj.Address, false);
+          if (addr != 0)
+          {
+            var strObj = runtime.Heap.GetObject(addr);
+            if (strObj.IsValid) return strObj.AsString() ?? "";
+          }
+        }
+      }
+      catch { }
+
+      return type switch
+      {
+        4   => "Eye of Cthulhu",
+        50  => "King Slime",
+        13  => "Eater of Worlds",
+        14  => "Eater of Worlds",
+        15  => "Eater of Worlds",
+        266 => "Brain of Cthulhu",
+        222 => "Queen Bee",
+        35  => "Skeletron",
+        113 => "Wall of Flesh",
+        657 => "Queen Slime",
+        125 => "Retinazer",
+        126 => "Spazmatism",
+        134 => "The Destroyer",
+        127 => "Skeletron Prime",
+        262 => "Plantera",
+        245 => "Golem",
+        370 => "Duke Fishron",
+        439 => "Lunatic Cultist",
+        396 => "Moon Lord",
+        397 => "Moon Lord",
+        398 => "Moon Lord",
+        507 => "Stardust Pillar",
+        517 => "Solar Pillar",
+        493 => "Vortex Pillar",
+        508 => "Nebula Pillar",
+        668 => "Deerclops",
+        551 => "Betsy",
+        _   => $"Boss ({type})"
+      };
+    }
+
+    private int GetPillarShield(ClrType mainType, ClrAppDomain appDomain, int pillarType)
+    {
+      string fieldName = pillarType switch
+      {
+        507 => "ShieldStrengthTowerStardust",
+        517 => "ShieldStrengthTowerSolar",
+        493 => "ShieldStrengthTowerVortex",
+        508 => "ShieldStrengthTowerNebula",
+        _   => ""
+      };
+
+      if (string.IsNullOrEmpty(fieldName)) return 0;
+      var field = mainType.StaticFields.FirstOrDefault(f => f.Name == fieldName);
+      return field?.Read<int>(appDomain) ?? 0;
+    }
+
+    private int GetPillarMaxShield(ClrType mainType, ClrAppDomain appDomain)
+    {
+      var field = mainType.StaticFields.FirstOrDefault(f => f.Name == "ShieldStrengthTowerMax");
+      int val = field?.Read<int>(appDomain) ?? 0;
+      return val > 0 ? val : 100;
     }
   }
 }

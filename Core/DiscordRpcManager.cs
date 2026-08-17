@@ -6,10 +6,11 @@ namespace TerrariaRPC.Core
     public class DiscordRpcManager : IDisposable
     {
         private DiscordRpcClient client;
-        private SeedIconManager iconManager;
+        private IconManager iconManager;
+        private ActiveBossEventManager bossEventManager = new ActiveBossEventManager();
         private string currentClientId = "";
 
-        public DiscordRpcManager(SeedIconManager iconManager)
+        public DiscordRpcManager(IconManager iconManager)
         {
             this.iconManager = iconManager;
         }
@@ -46,7 +47,7 @@ namespace TerrariaRPC.Core
                     case GameScreen.InGameSinglePlayer:
                     case GameScreen.InGameMultiplayer:
                         title = PresenceTemplateEngine.Format(config.Line1, state);
-                        subtitle1 = PresenceTemplateEngine.Format("ATK: {{PlayerAtk}} | DEF: {{PlayerDef}} | HP: {{PlayerHp}}/{{PlayerMaxHp}} | MP: {{PlayerMp}}/{{PlayerMaxMp}}", state);
+                        subtitle1 = PresenceTemplateEngine.Format(config.Line2, state);
                         break;
 
                     case GameScreen.MainMenu:
@@ -90,7 +91,6 @@ namespace TerrariaRPC.Core
                         break;
 
                     default:
-                        // Settings, Credits, etc.
                         title = "In Menus";
                         subtitle1 = "";
                         break;
@@ -101,7 +101,7 @@ namespace TerrariaRPC.Core
 
             string largeIconUrl = config.LargeImageStyleIndex == 1
                 ? config.LargeImageCustomUrl
-                : (isInGame ? iconManager.GetCurrentIconUrl() : "https://terraria.wiki.gg/images/Treetop_Forest_1.png");
+                : (isInGame ? iconManager.GetCurrentWorldIconUrl() : "https://terraria.wiki.gg/images/Treetop_Forest_1.png");
 
             string largeImageText = "";
             if (isInGame)
@@ -153,19 +153,15 @@ namespace TerrariaRPC.Core
             if (isInGame)
             {
                 string heldItemWikiName = state.PlayerItemHeld.Replace(" ", "_");
-                
-                smallIconUrl = config.SmallImageStyleIndex == 1
-                    ? config.SmallImageCustomUrl
-                    : (!string.IsNullOrEmpty(heldItemWikiName) ? $"https://terraria.wiki.gg/images/{heldItemWikiName}.png" : "");
+                string itemIconUrl = !string.IsNullOrEmpty(heldItemWikiName) ? $"https://terraria.wiki.gg/images/{heldItemWikiName}.png" : "";
 
-                string fullItemName = string.IsNullOrEmpty(state.PlayerItemPrefix)
-                    ? state.PlayerItemHeld
-                    : $"{state.PlayerItemPrefix} {state.PlayerItemHeld}";
-
-                smallImageText = config.SmallImageStyleIndex == 1
-                    ? PresenceTemplateEngine.Format(config.SmallImageCustomText, state)
-                    : (!string.IsNullOrEmpty(fullItemName) ? $"Holding: {fullItemName}" : "");
+                var (url, text) = bossEventManager.GetSmallIconAndText(state, config, iconManager, itemIconUrl);
+                smallIconUrl = url;
+                smallImageText = text;
             }
+
+            if (smallImageText.Length > 128)
+                smallImageText = smallImageText[..125] + "...";
 
             var presence = new RichPresence()
             {
@@ -182,7 +178,7 @@ namespace TerrariaRPC.Core
 
             client.SetPresence(presence);
             client.Invoke();
-            Logger.Info($"Presence sent → Details:\"{title}\" State:\"{subtitle1}\" SmallIcon:\"{smallIconUrl}\"");
+            Logger.Info($"Presence sent → Details:\"{title}\" State:\"{subtitle1}\" SmallIcon:\"{smallIconUrl}\" SmallText:\"{smallImageText}\"");
         }
 
         public void Dispose()

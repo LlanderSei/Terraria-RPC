@@ -7,11 +7,14 @@
     <!-- Must be x86 to match Terraria's 32-bit process for ClrMD memory reading -->
     <PlatformTarget>x86</PlatformTarget>
     <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
-    <Version>0.1.1</Version>
+    <Version>0.1.2</Version>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Exclude scratch sub-projects from being compiled into this project -->
+    <!-- Exclude debugging and scratch sub-projects from being compiled into this main app -->
+    <Compile Remove="debugging\**" />
+    <None Remove="debugging\**" />
+    <EmbeddedResource Remove="debugging\**" />
     <Compile Remove="DumpBiomeFields\**" />
     <None Remove="DumpBiomeFields\**" />
     <EmbeddedResource Remove="DumpBiomeFields\**" />

@@ -27,5 +27,6 @@ packages/
 *.tmp
 *.temp
 
-binPublish/
+DumpBiomeFields/
 scratch/**
+debugging/**
