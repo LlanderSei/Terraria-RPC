@@ -219,8 +219,19 @@ public partial class MainWindow : Window
     await dialog.ShowDialog(this);
   }
 
-  public void OnSaveClick(object sender, RoutedEventArgs e)
+  private bool _isSaving = false;
+
+  public async void OnSaveClick(object sender, RoutedEventArgs e)
   {
+    if (_isSaving) return;
+    _isSaving = true;
+
+    var saveBtn = this.FindControl<Button>("SaveButton");
+    if (saveBtn != null)
+    {
+      saveBtn.Content = "Saving Config...";
+    }
+
     var config = ConfigManager.CurrentConfig ?? new RpcConfig();
 
     config.Line1 = this.FindControl<TextBox>("Line1Box")!.Text ?? "";
@@ -252,6 +263,20 @@ public partial class MainWindow : Window
     config.ClientId = this.FindControl<TextBox>("ClientIdBox")!.Text ?? "123456789012345678";
 
     ConfigManager.SaveConfig();
+
+    if (saveBtn != null)
+    {
+      saveBtn.Content = "Configuration Saved!";
+    }
+
+    await System.Threading.Tasks.Task.Delay(2000);
+
+    if (saveBtn != null)
+    {
+      saveBtn.Content = "Save Configuration";
+    }
+
+    _isSaving = false;
   }
 
   protected override void OnClosing(WindowClosingEventArgs e)

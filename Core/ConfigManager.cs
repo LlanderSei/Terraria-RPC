@@ -42,7 +42,7 @@ namespace TerrariaRPC.Core
 
     public static class ConfigManager
     {
-        private static readonly string ConfigPath = "config.json";
+        private static readonly string ConfigPath = Path.Combine(AppContext.BaseDirectory, "config.json");
         public static RpcConfig CurrentConfig { get; private set; } = new RpcConfig();
 
         public static void LoadConfig()

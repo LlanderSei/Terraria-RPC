@@ -1,5 +1,4 @@
 using System;
-using System.IO;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -10,6 +9,7 @@ namespace TerrariaRPC;
 
 public partial class App : Application
 {
+  public static bool IsHeadless { get; set; } = false;
   private TrayIcon? _trayIcon;
   private MainWindow? _mainWindow;
 
@@ -24,6 +24,17 @@ public partial class App : Application
     {
       _mainWindow = new MainWindow();
       desktop.MainWindow = _mainWindow;
+
+      if (IsHeadless)
+      {
+        EventHandler? onOpened = null;
+        onOpened = (_, _) =>
+        {
+          _mainWindow.Opened -= onOpened;
+          _mainWindow.Hide();
+        };
+        _mainWindow.Opened += onOpened;
+      }
 
       SetupTrayIcon();
 
@@ -57,7 +68,7 @@ public partial class App : Application
     // Build tray menu
     var menu = new NativeMenu();
 
-    var showItem = new NativeMenuItem("Show");
+    var showItem = new NativeMenuItem("Show GUI");
     showItem.Click += (_, _) => _mainWindow?.ShowAndBringToFront();
     menu.Add(showItem);
 
@@ -78,5 +89,4 @@ public partial class App : Application
     // Also let double-clicking the tray icon show the window
     _trayIcon.Clicked += (_, _) => _mainWindow?.ShowAndBringToFront();
   }
-
 }

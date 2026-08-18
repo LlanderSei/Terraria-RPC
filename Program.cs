@@ -26,6 +26,7 @@ class Program
     bool noGui = args.Any(a => a.Equals("--no-gui", StringComparison.OrdinalIgnoreCase))
                  || Environment.GetEnvironmentVariable("TERRARIARPC_HEADLESS") == "1";
 
+    App.IsHeadless = noGui;
     Logger.Info(noGui ? "Mode: Headless" : "Mode: GUI");
 
     // ── Single-instance check ────────────────────────────────────────────────
@@ -62,42 +63,20 @@ class Program
       }
     }
 
-    // ── Start RPC loop ───────────────────────────────────────────────────────
+    // ── Start RPC loop in background thread ───────────────────────────
     Thread rpcThread = new Thread(noGui ? (ThreadStart)HeadlessRpcLoop : RpcLoop);
     rpcThread.IsBackground = true;
     rpcThread.Name = "RPC-Loop";
     rpcThread.Start();
 
-    if (noGui)
-    {
-      Logger.Info("Running headless. Press Ctrl+C to exit.");
-      Console.CancelKeyPress += (sender, e) =>
-      {
-        e.Cancel = true;
-        keepRunning = false;
-        Logger.Info("Ctrl+C received — shutting down...");
-      };
-
-      while (keepRunning)
-        Thread.Sleep(100);
-
-      SingleInstance.Release();
-      Logger.Info("Headless mode exited cleanly.");
-    }
-    else
-    {
-      Logger.Info("Starting Avalonia GUI...");
-      BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
-      keepRunning = false;
-      SingleInstance.Release();
-      Logger.Info("GUI closed.");
-    }
+    // ── Start Avalonia UI Framework (handles TrayIcon in both GUI & Headless) ──
+    Logger.Info("Starting Avalonia Framework...");
+    BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+    keepRunning = false;
+    SingleInstance.Release();
+    Logger.Info("Application exited.");
   }
 
-  /// <summary>
-  /// RPC loop for GUI mode — runs indefinitely, no exit logic needed
-  /// (the GUI window handles shutting down).
-  /// </summary>
   private static void RpcLoop()
   {
     var iconManager  = new IconManager();
@@ -125,10 +104,6 @@ class Program
     Logger.Info("RPC loop stopped.");
   }
 
-  /// <summary>
-  /// RPC loop for headless mode — also watches for Terraria exiting:
-  /// after 3 consecutive missed connections (post first detection), exits the app.
-  /// </summary>
   private static void HeadlessRpcLoop()
   {
     var iconManager  = new IconManager();
@@ -158,6 +133,11 @@ class Program
           {
             Logger.Info("Terraria closed — headless mode exiting after 3 missed connections.");
             keepRunning = false;
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+              SingleInstance.Release();
+              Environment.Exit(0);
+            });
             break;
           }
         }

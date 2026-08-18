@@ -76,8 +76,8 @@ namespace TerrariaRPC.Core
       "For The Worthy", "No Traps", "Remix"
     };
 
-        private readonly string primaryConfigPath = "icons.json";
-        private readonly string legacyConfigPath = "world_icons.json";
+        private readonly string primaryConfigPath = Path.Combine(AppContext.BaseDirectory, "icons.json");
+        private readonly string legacyConfigPath = Path.Combine(AppContext.BaseDirectory, "world_icons.json");
 
         private FullIconsConfig fullConfig = new();
 
