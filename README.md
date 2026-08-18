@@ -53,14 +53,14 @@ For Shortcuts:
       `C:\Windows\System32\cmd.exe /c start "" [Path\To\TerrariaRPC.exe] --no-gui & start "" [Path\To\Terraria.exe]
       ```
       *Replace \[Path\To\TerrariaRPC.exe\] & \[Path\To\Terraria.exe\] with their correct paths, don't include brackets, obviously...*\
-      *To copy your application path, hold left-shift while right-clicking the .exe, then press "Copy as path", replace it to \[Path\To\TerrariaRPC.exe\] or \[Path\To\Terraria.exe\] accordingly.*
-      *Terraria need to be in the last argument launch due to it crashing because of UAC prompt from TerrariaRPC.*
-      *Icon will change to cmd.exe, just replace it by clicking "Change Icon" and navigate to Terraria.exe and choose it.*
+      *To copy your application path, hold left-shift while right-clicking the .exe, then press "Copy as path", replace it to \[Path\To\TerrariaRPC.exe\] or \[Path\To\Terraria.exe\] accordingly.*\
+      *Terraria need to be in the last argument launch due to it crashing because of UAC prompt from TerrariaRPC.*\
+      *Icon will change to cmd.exe, just replace it by clicking "Change Icon" and navigate to Terraria.exe and choose it.*\
       *How this should look, for example on mine:*
       ```
       C:\Windows\System32\cmd.exe /c start "" "E:\Documents\Llander\GitHub\Terraria-RPC\bin\Publish\TerrariaRPC.exe" --no-gui & start "" "D:\Program Files\Games\Steam\steamapps\common\Terraria\Terraria.exe"
       ```
-   4. Then hit **Apply**, that'll now launch both TerrariaRPC and Terraria.
+   4. Then hit **Apply**, that'll now launch both TerrariaRPC in headless mode and Terraria.
 
 **How Headless Mode works:**
 - The app will launch completely hidden in the background when you start Terraria.
