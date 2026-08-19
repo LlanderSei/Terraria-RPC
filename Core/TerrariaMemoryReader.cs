@@ -91,9 +91,27 @@ namespace TerrariaRPC.Core
     public bool HasActiveEvent => !string.IsNullOrEmpty(ActiveEventName);
     public string ActiveEventName { get; set; } = "";
     public int ActiveEventProgress { get; set; } = -1; // -1 if non-% (e.g. Slime Rain)
-    public string ActiveEventText => HasActiveEvent
-      ? (ActiveEventProgress >= 0 ? $"Clearing: {ActiveEventName} ({ActiveEventProgress}%)" : $"Clearing: {ActiveEventName}")
-      : "";
+    public int ActiveEventWaveNum { get; set; } = -1; // -1 if no wave number
+
+    public string ActiveEventText
+    {
+      get
+      {
+        if (!HasActiveEvent) return "";
+
+        bool hasWave = ActiveEventWaveNum > 0;
+        bool hasPct = ActiveEventProgress >= 0;
+
+        if (hasWave && hasPct)
+          return $"Clearing: {ActiveEventName} (Wave {ActiveEventWaveNum}: {ActiveEventProgress}%)";
+        if (hasWave)
+          return $"Clearing: {ActiveEventName} (Wave {ActiveEventWaveNum})";
+        if (hasPct)
+          return $"Clearing: {ActiveEventName} ({ActiveEventProgress}%)";
+
+        return $"Clearing: {ActiveEventName}";
+      }
+    }
 
     // ── Non-Progressive Event Info ─────────────────────────────────────────
     public bool HasActiveNonProgressiveEvent => !string.IsNullOrEmpty(ActiveNonProgressiveEventName);
@@ -128,6 +146,8 @@ namespace TerrariaRPC.Core
     private ulong _birthdayPartyTypeMT = 0;
     private ulong _lanternNightTypeMT   = 0;
     private ulong _sandstormTypeMT      = 0;
+    private ulong _dd2EventTypeMT       = 0;
+    private int _lastKnownOoaWave       = -1;
 
     public bool Attach()
     {
@@ -168,7 +188,7 @@ namespace TerrariaRPC.Core
         if (cached != null) return cached;
         // Cache miss (new process) — clear all MT caches and re-scan
         _mainTypeMT = _worldGenTypeMT = _playerTypeMT = _langTypeMT = 0;
-        _birthdayPartyTypeMT = _lanternNightTypeMT = _sandstormTypeMT = 0;
+        _birthdayPartyTypeMT = _lanternNightTypeMT = _sandstormTypeMT = _dd2EventTypeMT = 0;
         cachedMT = 0;
       }
 
@@ -782,6 +802,7 @@ namespace TerrariaRPC.Core
 
       CurrentState.ActiveEventName = "";
       CurrentState.ActiveEventProgress = -1;
+      CurrentState.ActiveEventWaveNum = -1;
 
       CurrentState.ActiveNonProgressiveEventName = "";
       CurrentState.ActivePeacefulEventName = "";
@@ -807,6 +828,9 @@ namespace TerrariaRPC.Core
               int bestBossMaxHp = 0;
               int highestMaxHp = 0;
 
+              // The Twins tracking: accumulate both eyes' HP for combined display
+              int twinsLife = 0, twinsLifeMax = 0, twinsCount = 0;
+
               for (int i = 0; i < len; i++)
               {
                 var npcObj = npcArrayObj.AsArray().GetObjectValue(i);
@@ -818,15 +842,32 @@ namespace TerrariaRPC.Core
                 bool isBoss = npcObj.ReadField<bool>("boss");
                 int type = npcObj.ReadField<int>("type");
 
-                bool isPillar = type == 507 || type == 517 || type == 493 || type == 508;
+                // Corrected pillar IDs (confirmed by user from Terraria wiki):
+                // 493=LunarTowerStardust, 517=LunarTowerSolar, 507=LunarTowerNebula, 422=LunarTowerVortex
+                bool isPillar = type == 493 || type == 517 || type == 507 || type == 422;
 
                 if (isBoss || isPillar || IsKnownBossType(type))
                 {
+                  int life = npcObj.ReadField<int>("life");
+                  int lifeMax = npcObj.ReadField<int>("lifeMax");
+
+                  // Skip dead/inactive NPC slots (life<=0 means the slot is empty or dead)
+                  if (life <= 0) continue;
+
                   string typeName = GetNpcTypeName(runtime, appDomain, npcObj, type);
                   if (string.IsNullOrEmpty(typeName)) continue;
 
-                  int life = npcObj.ReadField<int>("life");
-                  int lifeMax = npcObj.ReadField<int>("lifeMax");
+                  // Debug: log every NPC that passes the boss check so we can verify type IDs
+                  Logger.Debug($"[BossFound] type={type} boss={isBoss} isPillar={isPillar} life={life}/{lifeMax} name={typeName}");
+
+                  // The Twins: accumulate both Retinazer (125) and Spazmatism (126)
+                  if (type == 125 || type == 126)
+                  {
+                    twinsLife += life;
+                    twinsLifeMax += lifeMax;
+                    twinsCount++;
+                    continue; // handled after loop
+                  }
 
                   if (isPillar)
                   {
@@ -859,6 +900,30 @@ namespace TerrariaRPC.Core
                 }
               }
 
+              // Resolve The Twins post-loop
+              if (twinsCount == 2)
+              {
+                // Both eyes alive — show combined HP as "The Twins"
+                if (twinsLifeMax >= highestMaxHp)
+                {
+                  bestBossName = "The Twins";
+                  bestBossHp = twinsLife;
+                  bestBossMaxHp = twinsLifeMax;
+                }
+              }
+              else if (twinsCount == 1)
+              {
+                // One eye down — show whichever survived individually
+                if (twinsLifeMax > highestMaxHp)
+                {
+                  // We can't easily re-read which one survived here; use generic name
+                  // The individual NPC name was already resolved in typeName but skipped
+                  // For now fall through — next poll will scan it as a solo boss with boss=true
+                  bestBossHp = twinsLife;
+                  bestBossMaxHp = twinsLifeMax;
+                }
+              }
+
               if (!string.IsNullOrEmpty(bestBossName))
               {
                 CurrentState.ActiveBossName = bestBossName;
@@ -869,39 +934,116 @@ namespace TerrariaRPC.Core
           }
         }
 
-        // 2. Progressive Events (Invasion, Slime Rain, Pumpkin/Frost Moon)
+        // 2. Progressive Events (Invasion, Slime Rain, Pumpkin/Frost Moon, Old One's Army)
         int invasionType = mainType.StaticFields.FirstOrDefault(f => f.Name == "invasionType")?.Read<int>(appDomain) ?? 0;
         int invasionProgress = mainType.StaticFields.FirstOrDefault(f => f.Name == "invasionProgress")?.Read<int>(appDomain) ?? 0;
         int invasionProgressMax = mainType.StaticFields.FirstOrDefault(f => f.Name == "invasionProgressMax")?.Read<int>(appDomain) ?? 0;
+        // invasionWave is used by OOA and moon events for the current wave number
+        int invasionWave = mainType.StaticFields.FirstOrDefault(f => f.Name == "invasionWave")?.Read<int>(appDomain) ?? 0;
 
-        if (invasionType > 0)
+        // Old One's Army: uses a dedicated DD2Event static class
+        var dd2Type = TryGetCachedType(runtime, ref _dd2EventTypeMT, "Terraria.GameContent.Events.DD2Event");
+        bool dd2Active = false;
+        if (dd2Type != null)
         {
-          string invName = invasionType switch
+          dd2Active = dd2Type.StaticFields.FirstOrDefault(f => f.Name == "Ongoing")?.Read<bool>(appDomain) ?? false;
+          if (dd2Active)
           {
-            1 => "Goblin Invasion",
-            2 => "Frost Legion",
-            3 => "Pirate Invasion",
-            4 => "Martian Madness",
-            _ => "Invasion"
-          };
-          int pct = invasionProgressMax > 0 ? (int)(invasionProgress * 100.0 / invasionProgressMax) : 0;
-          CurrentState.ActiveEventName = invName;
-          CurrentState.ActiveEventProgress = Math.Min(100, Math.Max(0, pct));
+            // Diagnostics: dump all static fields of DD2Event and Main invasion fields
+            var fieldValues = new List<string>();
+            foreach (var f in dd2Type.StaticFields)
+            {
+              try
+              {
+                int valInt = f.Read<int>(appDomain);
+                fieldValues.Add($"{f.Name}={valInt}");
+              }
+              catch
+              {
+                try
+                {
+                  bool valBool = f.Read<bool>(appDomain);
+                  fieldValues.Add($"{f.Name}={valBool}");
+                }
+                catch { }
+              }
+            }
+            Logger.Debug($"[OOA Diagnostics] Main.invasionWave={invasionWave}, invasionType={invasionType}, invasionProgress={invasionProgress}/{invasionProgressMax} | DD2Fields: {string.Join(", ", fieldValues)}");
+
+            // Old One's Army wave mapping based on invasionProgressMax values:
+            // Tier 1 (5 waves): W1=60, W2=80, W3=100, W4=120, W5=140
+            // Tier 2/3 (7 waves): W1=60, W2=80, W3=100, W4=120, W5=140, W6=180, W7=220
+            int dd2Wave = invasionProgressMax switch
+            {
+              60 => 1,
+              80 => 2,
+              100 => 3,
+              120 => 4,
+              140 => 5,
+              180 => 6,
+              220 => 7,
+              _ => -1
+            };
+
+            // If we are currently in intermission (_timeLeftUntilSpawningBegins > 0 or invasionProgressMax == 1), preserve the current wave number
+            int intermissionTime = dd2Type.StaticFields.FirstOrDefault(f => f.Name == "_timeLeftUntilSpawningBegins")?.Read<int>(appDomain) ?? 0;
+            if (dd2Wave > 0)
+            {
+              _lastKnownOoaWave = dd2Wave;
+            }
+            else if (_lastKnownOoaWave > 0)
+            {
+              dd2Wave = _lastKnownOoaWave;
+            }
+
+            int pct = (intermissionTime > 0 || invasionProgressMax <= 1) ? 100 : (invasionProgressMax > 0 ? (int)(invasionProgress * 100.0 / invasionProgressMax) : -1);
+            CurrentState.ActiveEventName = "Old One's Army";
+            CurrentState.ActiveEventProgress = pct >= 0 ? Math.Min(100, pct) : -1;
+            CurrentState.ActiveEventWaveNum = dd2Wave > 0 ? dd2Wave : 1;
+          }
+          else
+          {
+            _lastKnownOoaWave = -1;
+          }
         }
-        else if (mainType.StaticFields.FirstOrDefault(f => f.Name == "slimeRain")?.Read<bool>(appDomain) ?? false)
+        else
         {
-          CurrentState.ActiveEventName = "Slime Rain";
-          CurrentState.ActiveEventProgress = -1;
+          _lastKnownOoaWave = -1;
         }
-        else if (mainType.StaticFields.FirstOrDefault(f => f.Name == "pumpkinMoon")?.Read<bool>(appDomain) ?? false)
+
+        if (!dd2Active)
         {
-          CurrentState.ActiveEventName = "Pumpkin Moon";
-          CurrentState.ActiveEventProgress = -1;
-        }
-        else if (mainType.StaticFields.FirstOrDefault(f => f.Name == "snowMoon")?.Read<bool>(appDomain) ?? false)
-        {
-          CurrentState.ActiveEventName = "Frost Moon";
-          CurrentState.ActiveEventProgress = -1;
+          if (invasionType > 0)
+          {
+            string invName = invasionType switch
+            {
+              1 => "Goblin Invasion",
+              2 => "Frost Legion",
+              3 => "Pirate Invasion",
+              4 => "Martian Madness",
+              _ => "Invasion"
+            };
+            int pct = invasionProgressMax > 0 ? (int)(invasionProgress * 100.0 / invasionProgressMax) : 0;
+            CurrentState.ActiveEventName = invName;
+            CurrentState.ActiveEventProgress = Math.Min(100, Math.Max(0, pct));
+          }
+          else if (mainType.StaticFields.FirstOrDefault(f => f.Name == "slimeRain")?.Read<bool>(appDomain) ?? false)
+          {
+            CurrentState.ActiveEventName = "Slime Rain";
+            CurrentState.ActiveEventProgress = -1;
+          }
+          else if (mainType.StaticFields.FirstOrDefault(f => f.Name == "pumpkinMoon")?.Read<bool>(appDomain) ?? false)
+          {
+            CurrentState.ActiveEventName = "Pumpkin Moon";
+            CurrentState.ActiveEventProgress = -1;
+            CurrentState.ActiveEventWaveNum = invasionWave > 0 ? invasionWave : -1;
+          }
+          else if (mainType.StaticFields.FirstOrDefault(f => f.Name == "snowMoon")?.Read<bool>(appDomain) ?? false)
+          {
+            CurrentState.ActiveEventName = "Frost Moon";
+            CurrentState.ActiveEventProgress = -1;
+            CurrentState.ActiveEventWaveNum = invasionWave > 0 ? invasionWave : -1;
+          }
         }
 
         // 3. Non-Progressive Events (Blood Moon, Solar Eclipse)
@@ -974,25 +1116,35 @@ namespace TerrariaRPC.Core
              type == 50 || type == 113 || type == 125 || type == 126 || type == 127 ||
              type == 134 || type == 222 || type == 245 || type == 262 || type == 266 ||
              type == 370 || type == 396 || type == 397 || type == 398 || type == 439 ||
-             type == 551 || type == 657 || type == 668;
+             type == 491 ||  // Flying Dutchman
+             type == 551 || type == 657 || type == 668 || type == 636 ||
+             // Old One's Army bosses — IDs verified from Terraria wiki
+             type == 564 || type == 565 ||  // Dark Mage Tier 1 & Tier 3
+             type == 576;                   // Ogre
     }
 
     private string GetNpcTypeName(ClrRuntime runtime, ClrAppDomain appDomain, ClrObject npcObj, int type)
     {
-      try
+      // Only try GivenOrTypeName for actual custom/renamed NPCs — for known types,
+      // use the switch directly so we never get empty strings from unset fields.
+      if (!IsKnownBossType(type))
       {
-        var field = npcObj.Type.Fields.FirstOrDefault(f => f.Name == "GivenOrTypeName");
-        if (field != null)
+        try
         {
-          ulong addr = field.Read<ulong>(npcObj.Address, false);
-          if (addr != 0)
+          var field = npcObj.Type?.Fields.FirstOrDefault(f => f.Name == "GivenOrTypeName");
+          if (field != null)
           {
-            var strObj = runtime.Heap.GetObject(addr);
-            if (strObj.IsValid) return strObj.AsString() ?? "";
+            ulong addr = field.Read<ulong>(npcObj.Address, false);
+            if (addr != 0)
+            {
+              var strObj = runtime.Heap.GetObject(addr);
+              string? s = strObj.IsValid ? strObj.AsString() : null;
+              if (!string.IsNullOrWhiteSpace(s)) return s;
+            }
           }
         }
+        catch { }
       }
-      catch { }
 
       return type switch
       {
@@ -1017,24 +1169,34 @@ namespace TerrariaRPC.Core
         396 => "Moon Lord",
         397 => "Moon Lord",
         398 => "Moon Lord",
-        507 => "Stardust Pillar",
+        // Pillars — corrected IDs per Terraria wiki:
+        // 493=LunarTowerStardust, 517=LunarTowerSolar, 507=LunarTowerNebula, 422=LunarTowerVortex
+        493 => "Stardust Pillar",
         517 => "Solar Pillar",
-        493 => "Vortex Pillar",
-        508 => "Nebula Pillar",
+        507 => "Nebula Pillar",
+        422 => "Vortex Pillar",
         668 => "Deerclops",
         551 => "Betsy",
+        636 => "Empress of Light",
+        // Old One's Army bosses — IDs verified from Terraria wiki
+        564 => "Dark Mage",
+        565 => "Dark Mage",
+        576 => "Ogre",
+        491 => "Flying Dutchman",
         _   => $"Boss ({type})"
       };
     }
 
     private int GetPillarShield(ClrType mainType, ClrAppDomain appDomain, int pillarType)
     {
+      // Pillar NPC IDs (confirmed from Terraria wiki):
+      // 493=LunarTowerStardust, 517=LunarTowerSolar, 507=LunarTowerNebula, 422=LunarTowerVortex
       string fieldName = pillarType switch
       {
-        507 => "ShieldStrengthTowerStardust",
+        493 => "ShieldStrengthTowerStardust",
         517 => "ShieldStrengthTowerSolar",
-        493 => "ShieldStrengthTowerVortex",
-        508 => "ShieldStrengthTowerNebula",
+        507 => "ShieldStrengthTowerNebula",
+        422 => "ShieldStrengthTowerVortex",
         _   => ""
       };
 

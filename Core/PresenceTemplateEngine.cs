@@ -45,6 +45,7 @@ namespace TerrariaRPC.Core
         { "{{ActiveBossMaxHp}}",                state.ActiveBossMaxHp.ToString() },
         { "{{ActiveEvent}}",                    state.ActiveEventName },
         { "{{ActiveEventProgress}}",            state.ActiveEventProgress >= 0 ? state.ActiveEventProgress.ToString() : "" },
+        { "{{ActiveEventWaveNum}}",             state.ActiveEventWaveNum > 0 ? state.ActiveEventWaveNum.ToString() : "" },
         { "{{ActiveBossOrEventText}}",          bossOrEventText }
       };
 

@@ -229,7 +229,7 @@ namespace TerrariaRPC.Core
         { "Deerclops", "https://terraria.wiki.gg/images/Map_Icon_Deerclops.png" },
         { "Wall of Flesh", "https://terraria.wiki.gg/images/Map_Icon_Wall_of_Flesh.png" },
         { "Queen Slime", "https://terraria.wiki.gg/images/Map_Icon_Queen_Slime.png" },
-        { "The Twins", "https://terraria.wiki.gg/images/The_Twins.png" },
+        { "The Twins", "https://files.catbox.moe/e0ev9a.png" }, // Custom Icon
         { "Retinazer", "https://files.catbox.moe/e0ev9a.png" },
         { "Spazmatism", "https://terraria.wiki.gg/images/Map_Icon_Spazmatism_%28first_form%29.png" },
         { "The Destroyer", "https://terraria.wiki.gg/images/Map_Icon_The_Destroyer.png" },
@@ -248,6 +248,7 @@ namespace TerrariaRPC.Core
         { "Betsy", "https://terraria.wiki.gg/images/Map_Icon_Betsy.png" },
         { "Dark Mage", "https://terraria.wiki.gg/images/Map_Icon_Dark_Mage.png" },
         { "Ogre", "https://terraria.wiki.gg/images/Map_Icon_Ogre.png" },
+        { "Flying Dutchman", "https://terraria.wiki.gg/images/Map_Icon_Flying_Dutchman.png" },
         { "Mourning Wood", "https://terraria.wiki.gg/images/Map_Icon_Mourning_Wood.png" },
         { "Pumpking", "https://terraria.wiki.gg/images/Map_Icon_Pumpking.png" },
         { "Everscream", "https://terraria.wiki.gg/images/Map_Icon_Everscream.png" },
@@ -267,7 +268,7 @@ namespace TerrariaRPC.Core
         { "Frost Moon", "https://terraria.wiki.gg/images/Bestiary_Frost_Moon.png" },
         { "Slime Rain", "https://terraria.wiki.gg/images/Bestiary_Slime_Rain.png" },
         { "Old One's Army", "https://terraria.wiki.gg/images/Bestiary_Old_One%27s_Army.png" },
-        { "Celestial Pillars", "https://files.catbox.moe/djvelz.png" }
+        { "Celestial Pillars", "https://files.catbox.moe/djvelz.png" } // Custom Icon
       },
             PeacefulIcons = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
       {
