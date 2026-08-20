@@ -1,6 +1,6 @@
 # Terraria-RPC
 
-A feature-rich Discord Rich Presence client for Terraria. It connects to a running Terraria process in real-time by reading its memory (via ClrMD) and displays detailed game information directly on your Discord profile, including current health, mana, defense, equipped items, biome, world size, world difficulty, active seeds, and much more!
+A feature-rich Discord Rich Presence client for Terraria. It connects to a running Terraria process in real-time by reading its memory (via [ClrMD](https://github.com/microsoft/clrmd)) and displays detailed game information directly on your Discord profile, including current health, mana, defense, equipped items, biome, world size, world difficulty, active seeds, and much more!
 
 ![](/Images/Demos/WindowConfiguration1.png)
 
