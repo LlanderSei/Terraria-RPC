@@ -148,8 +148,12 @@ namespace TerrariaRPC.Core
     private ulong _sandstormTypeMT      = 0;
     private ulong _dd2EventTypeMT       = 0;
     private int _lastKnownOoaWave       = -1;
+    private int _lastTwinsMaxHp         = 0;
     private int _lastEowMaxHp           = 0;
     private int _lastBocMaxHp           = 0;
+    private int _lastPrimeMaxHp         = 0;
+    private int _lastGolemMaxHp         = 0;
+    private int _lastMoonLordMaxHp      = 0;
     private string _lastAtkItemSignature = "";
 
     public bool Attach()

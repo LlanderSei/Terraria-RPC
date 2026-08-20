@@ -48,6 +48,12 @@ namespace TerrariaRPC.Core
               int bocLife = 0, bocLifeMax = 0, bocCount = 0;
               // Eater of Worlds tracking: combine all active worm segments into one boss total
               int eowLife = 0, eowLifeMax = 0, eowCount = 0;
+              // Skeletron Prime tracking: combine the head and all limbs.
+              int primeLife = 0, primeLifeMax = 0, primeCount = 0;
+              // Golem tracking: combine the body, head, and fists.
+              int golemLife = 0, golemLifeMax = 0, golemCount = 0;
+              // Moon Lord tracking: combine the core, hands, and head.
+              int moonLordLife = 0, moonLordLifeMax = 0, moonLordCount = 0;
 
               for (int i = 0; i < len; i++)
               {
@@ -105,6 +111,33 @@ namespace TerrariaRPC.Core
                     continue;
                   }
 
+                  // Skeletron Prime: aggregate the head plus all attached limbs.
+                  if (type == 127 || type == 128 || type == 129 || type == 130 || type == 131)
+                  {
+                    primeLife += life;
+                    primeLifeMax += lifeMax;
+                    primeCount++;
+                    continue;
+                  }
+
+                  // Golem: aggregate the body, head, and both fists.
+                  if (type == 245 || type == 246 || type == 247 || type == 248)
+                  {
+                    golemLife += life;
+                    golemLifeMax += lifeMax;
+                    golemCount++;
+                    continue;
+                  }
+
+                  // Moon Lord: aggregate the core, head, and both hands.
+                  if (type == 396 || type == 397 || type == 398)
+                  {
+                    moonLordLife += life;
+                    moonLordLifeMax += lifeMax;
+                    moonLordCount++;
+                    continue;
+                  }
+
                   if (isPillar)
                   {
                     int shield = GetPillarShield(mainType, appDomain, type);
@@ -136,37 +169,34 @@ namespace TerrariaRPC.Core
                 }
               }
 
-              // Resolve The Twins post-loop
-              if (twinsCount == 2)
+              // Resolve The Twins post-loop.
+              if (twinsCount > 0)
               {
-                // Both eyes alive — show combined HP as "The Twins"
-                if (twinsLifeMax >= highestMaxHp)
+                _lastTwinsMaxHp = Math.Max(_lastTwinsMaxHp, twinsLifeMax);
+                if (_lastTwinsMaxHp >= highestMaxHp)
                 {
                   bestBossName = "The Twins";
                   bestBossHp = twinsLife;
-                  bestBossMaxHp = twinsLifeMax;
+                  bestBossMaxHp = _lastTwinsMaxHp;
+                  highestMaxHp = _lastTwinsMaxHp;
                 }
               }
-              else if (twinsCount == 1)
+              else
               {
-                // One eye down — show whichever survived individually
-                if (twinsLifeMax > highestMaxHp)
-                {
-                  // We can't easily re-read which one survived here; use generic name
-                  // The individual NPC name was already resolved in typeName but skipped
-                  // For now fall through — next poll will scan it as a solo boss with boss=true
-                  bestBossHp = twinsLife;
-                  bestBossMaxHp = twinsLifeMax;
-                }
+                _lastTwinsMaxHp = 0;
               }
 
               // Resolve Brain of Cthulhu post-loop.
               if (bocCount > 0)
               {
                 _lastBocMaxHp = Math.Max(_lastBocMaxHp, bocLifeMax);
-                bestBossName = "Brain of Cthulhu";
-                bestBossHp = bocLife;
-                bestBossMaxHp = _lastBocMaxHp > 0 ? _lastBocMaxHp : bocLifeMax;
+                if (_lastBocMaxHp >= highestMaxHp)
+                {
+                  bestBossName = "Brain of Cthulhu";
+                  bestBossHp = bocLife;
+                  bestBossMaxHp = _lastBocMaxHp > 0 ? _lastBocMaxHp : bocLifeMax;
+                  highestMaxHp = _lastBocMaxHp;
+                }
               }
               else
               {
@@ -177,13 +207,68 @@ namespace TerrariaRPC.Core
               if (eowCount > 0)
               {
                 _lastEowMaxHp = Math.Max(_lastEowMaxHp, eowLifeMax);
-                bestBossName = "Eater of Worlds";
-                bestBossHp = eowLife;
-                bestBossMaxHp = _lastEowMaxHp > 0 ? _lastEowMaxHp : eowLifeMax;
+                if (_lastEowMaxHp >= highestMaxHp)
+                {
+                  bestBossName = "Eater of Worlds";
+                  bestBossHp = eowLife;
+                  bestBossMaxHp = _lastEowMaxHp > 0 ? _lastEowMaxHp : eowLifeMax;
+                  highestMaxHp = _lastEowMaxHp;
+                }
               }
               else
               {
                 _lastEowMaxHp = 0;
+              }
+
+              // Resolve Skeletron Prime post-loop.
+              if (primeCount > 0)
+              {
+                _lastPrimeMaxHp = Math.Max(_lastPrimeMaxHp, primeLifeMax);
+                if (_lastPrimeMaxHp >= highestMaxHp)
+                {
+                  bestBossName = "Skeletron Prime";
+                  bestBossHp = primeLife;
+                  bestBossMaxHp = _lastPrimeMaxHp;
+                  highestMaxHp = _lastPrimeMaxHp;
+                }
+              }
+              else
+              {
+                _lastPrimeMaxHp = 0;
+              }
+
+              // Resolve Golem post-loop.
+              if (golemCount > 0)
+              {
+                _lastGolemMaxHp = Math.Max(_lastGolemMaxHp, golemLifeMax);
+                if (_lastGolemMaxHp >= highestMaxHp)
+                {
+                  bestBossName = "Golem";
+                  bestBossHp = golemLife;
+                  bestBossMaxHp = _lastGolemMaxHp;
+                  highestMaxHp = _lastGolemMaxHp;
+                }
+              }
+              else
+              {
+                _lastGolemMaxHp = 0;
+              }
+
+              // Resolve Moon Lord post-loop.
+              if (moonLordCount > 0)
+              {
+                _lastMoonLordMaxHp = Math.Max(_lastMoonLordMaxHp, moonLordLifeMax);
+                if (_lastMoonLordMaxHp >= highestMaxHp)
+                {
+                  bestBossName = "Moon Lord";
+                  bestBossHp = moonLordLife;
+                  bestBossMaxHp = _lastMoonLordMaxHp;
+                  highestMaxHp = _lastMoonLordMaxHp;
+                }
+              }
+              else
+              {
+                _lastMoonLordMaxHp = 0;
               }
 
               if (!string.IsNullOrEmpty(bestBossName))
@@ -378,7 +463,9 @@ namespace TerrariaRPC.Core
     {
       return type == 4 || type == 13 || type == 14 || type == 15 || type == 35 ||
               type == 50 || type == 113 || type == 125 || type == 126 || type == 127 ||
-              type == 134 || type == 222 || type == 245 || type == 262 || type == 266 || type == 267 ||
+              type == 128 || type == 129 || type == 130 || type == 131 ||
+              type == 134 || type == 222 || type == 245 || type == 246 || type == 247 || type == 248 ||
+              type == 262 || type == 266 || type == 267 ||
               type == 370 || type == 396 || type == 397 || type == 398 || type == 439 ||
              type == 491 ||  // Flying Dutchman
              type == 551 || type == 657 || type == 668 || type == 636 ||
@@ -427,8 +514,15 @@ namespace TerrariaRPC.Core
         126 => "Spazmatism",
         134 => "The Destroyer",
         127 => "Skeletron Prime",
+        128 => "Prime Cannon",
+        129 => "Prime Saw",
+        130 => "Prime Vice",
+        131 => "Prime Laser",
         262 => "Plantera",
         245 => "Golem",
+        246 => "Golem",
+        247 => "Golem",
+        248 => "Golem",
         370 => "Duke Fishron",
         439 => "Lunatic Cultist",
         396 => "Moon Lord",
