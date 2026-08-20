@@ -6,7 +6,7 @@ using Avalonia.Interactivity;
 using Avalonia.Threading;
 using TerrariaRPC.Core;
 
-namespace TerrariaRPC;
+namespace TerrariaRPC.Forms;
 
 public partial class MainWindow : Window
 {

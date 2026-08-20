@@ -30,3 +30,4 @@ packages/
 DumpBiomeFields/
 scratch/**
 debugging/**
+obj_temp/**

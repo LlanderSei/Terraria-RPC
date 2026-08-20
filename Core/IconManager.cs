@@ -342,6 +342,12 @@ namespace TerrariaRPC.Core
             if (string.IsNullOrEmpty(eventName)) return "";
             if (fullConfig.PeacefulIcons.TryGetValue(eventName, out var url) && !string.IsNullOrEmpty(url))
                 return url;
+            if (eventName.Contains("Party", StringComparison.OrdinalIgnoreCase) &&
+                fullConfig.PeacefulIcons.TryGetValue("Party", out url) && !string.IsNullOrEmpty(url))
+                return url;
+            if (eventName.Contains("Lantern Night", StringComparison.OrdinalIgnoreCase) &&
+                fullConfig.PeacefulIcons.TryGetValue("Lantern Night", out url) && !string.IsNullOrEmpty(url))
+                return url;
             return "";
         }
 

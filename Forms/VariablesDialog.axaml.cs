@@ -5,7 +5,7 @@ using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
 
-namespace TerrariaRPC;
+namespace TerrariaRPC.Forms;
 
 public partial class VariablesDialog : Window
 {

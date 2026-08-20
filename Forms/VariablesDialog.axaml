@@ -1,6 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="TerrariaRPC.VariablesDialog"
+        x:Class="TerrariaRPC.Forms.VariablesDialog"
         Title="Available Template Variables"
         Width="660" Height="520"
         MinWidth="660" MinHeight="520"

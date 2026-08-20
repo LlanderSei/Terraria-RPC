@@ -3,24 +3,30 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
-    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationManifest Condition="'$(Configuration)' == 'Release'">app.manifest</ApplicationManifest>
     <!-- Must be x86 to match Terraria's 32-bit process for ClrMD memory reading -->
     <PlatformTarget>x86</PlatformTarget>
     <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
-    <Version>0.1.4</Version>
+    <Version>0.1.5</Version>
   </PropertyGroup>
 
   <ItemGroup>
     <!-- Exclude debugging and scratch sub-projects from being compiled into this main app -->
-    <Compile Remove="debugging\**" />
-    <None Remove="debugging\**" />
-    <EmbeddedResource Remove="debugging\**" />
+    <Compile Remove="Debugging\**" />
+    <None Remove="Debugging\**" />
+    <EmbeddedResource Remove="Debugging\**" />
     <Compile Remove="DumpBiomeFields\**" />
     <None Remove="DumpBiomeFields\**" />
     <EmbeddedResource Remove="DumpBiomeFields\**" />
     <Compile Remove="scratch\**" />
     <None Remove="scratch\**" />
     <EmbeddedResource Remove="scratch\**" />
+    <Compile Remove="obj_temp\**" />
+    <None Remove="obj_temp\**" />
+    <EmbeddedResource Remove="obj_temp\**" />
+    <Compile Remove="bin_temp\**" />
+    <None Remove="bin_temp\**" />
+    <EmbeddedResource Remove="bin_temp\**" />
   </ItemGroup>
 
   <ItemGroup>
