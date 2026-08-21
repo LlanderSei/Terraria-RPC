@@ -137,6 +137,10 @@ namespace TerrariaRPC.Core
         {
           CurrentState.HighestRecordedAtk = 0;
           CurrentState.PlayerAtk = "N/A";
+          CurrentState.PlayerHighestWeaponDmg = 0;
+          CurrentState.PlayerHighestDps = 0;
+          CurrentState.PlayerDynamicWeaponDmg = 0;
+          CurrentState.PlayerDynamicDps = 0;
         }
         
         _previousScreen = screen;

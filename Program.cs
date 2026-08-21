@@ -1,162 +1,186 @@
 using Avalonia;
+using Avalonia.Threading;
 using System;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using TerrariaRPC.Core;
 
-namespace TerrariaRPC;
-
-class Program
+namespace TerrariaRPC
 {
-  private static volatile bool keepRunning = true;
-
-  // Headless mode: track Terraria connection state for exit detection
-  private static volatile bool _terrariaEverDetected = false;
-  private static volatile int  _consecutiveMisses    = 0;
-  private const int MaxMisses = 3;
-
-  [STAThread]
-  public static void Main(string[] args)
+  class Program
   {
-    Logger.Info($"Args received: {string.Join(", ", args)}");
+    private static volatile bool _terrariaEverDetected = false;
+    private static volatile int _consecutiveMisses = 0;
+    private const int MaxMisses = 3;
+    private static readonly TimeSpan ReaderInterval = TimeSpan.FromSeconds(1);
+    private static readonly TimeSpan PresenceInterval = TimeSpan.FromSeconds(5);
 
-    ConfigManager.LoadConfig();
-
-    bool noGui = args.Any(a => a.Equals("--no-gui", StringComparison.OrdinalIgnoreCase))
-                 || Environment.GetEnvironmentVariable("TERRARIARPC_HEADLESS") == "1";
-
-    App.IsHeadless = noGui;
-    Logger.Info(noGui ? "Mode: Headless" : "Mode: GUI");
-
-    // ── Single-instance check ────────────────────────────────────────────────
-    bool isFirst = SingleInstance.TryAcquire();
-    if (!isFirst)
+    [STAThread]
+    public static void Main(string[] args)
     {
-      Logger.Info("Another instance is already running — sending 'show' command and exiting.");
-      SingleInstance.SendShowCommand();
-      return;
-    }
+      Logger.Info($"Args received: {string.Join(", ", args)}");
 
-    // ── Headless: startup Terraria poll (3 attempts, 5s apart) ───────────────
-    if (noGui)
-    {
-      Logger.Info("Headless: waiting for Terraria to start (up to 3 attempts, 5s apart)...");
-      bool found = false;
-      for (int attempt = 1; attempt <= MaxMisses; attempt++)
-      {
-        if (Process.GetProcessesByName("Terraria").Any())
-        {
-          Logger.Info($"Terraria detected on attempt {attempt}.");
-          found = true;
-          break;
-        }
-        Logger.Info($"Attempt {attempt}/{MaxMisses}: Terraria not found. Waiting 5s...");
-        Thread.Sleep(5000);
-      }
+      ConfigManager.LoadConfig();
 
-      if (!found)
+      bool noGui = args.Any(a => a.Equals("--no-gui", StringComparison.OrdinalIgnoreCase))
+        || Environment.GetEnvironmentVariable("TERRARIARPC_HEADLESS") == "1";
+
+      App.IsHeadless = noGui;
+      Logger.Info(noGui ? "Mode: Headless" : "Mode: GUI");
+
+      bool isFirst = SingleInstance.TryAcquire();
+      if (!isFirst)
       {
-        Logger.Info("Terraria not found after 3 attempts — exiting headless mode.");
-        SingleInstance.Release();
+        Logger.Info("Another instance is already running - sending 'show' command and exiting.");
+        SingleInstance.SendShowCommand();
         return;
       }
-    }
 
-    // ── Start RPC loop in background thread ───────────────────────────
-    Thread rpcThread = new Thread(noGui ? (ThreadStart)HeadlessRpcLoop : RpcLoop);
-    rpcThread.IsBackground = true;
-    rpcThread.Name = "RPC-Loop";
-    rpcThread.Start();
-
-    // ── Start Avalonia UI Framework (handles TrayIcon in both GUI & Headless) ──
-    Logger.Info("Starting Avalonia Framework...");
-    BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
-    keepRunning = false;
-    SingleInstance.Release();
-    Logger.Info("Application exited.");
-  }
-
-  private static void RpcLoop()
-  {
-    var iconManager  = new IconManager();
-    var memoryReader = new TerrariaMemoryReader();
-    using var rpcManager = new DiscordRpcManager(iconManager);
-
-    Logger.Info("RPC loop started (GUI mode).");
-
-    while (keepRunning)
-    {
-      try
+      if (noGui)
       {
-        memoryReader.Update();
-        rpcManager.UpdatePresence(memoryReader.CurrentState, ConfigManager.CurrentConfig);
-      }
-      catch (Exception ex)
-      {
-        Logger.Error($"RPC loop error: {ex.Message}");
-      }
-
-      for (int i = 0; i < 50 && keepRunning; i++)
-        Thread.Sleep(100);
-    }
-
-    Logger.Info("RPC loop stopped.");
-  }
-
-  private static void HeadlessRpcLoop()
-  {
-    var iconManager  = new IconManager();
-    var memoryReader = new TerrariaMemoryReader();
-    using var rpcManager = new DiscordRpcManager(iconManager);
-
-    Logger.Info("RPC loop started (headless mode).");
-
-    while (keepRunning)
-    {
-      try
-      {
-        memoryReader.Update();
-        rpcManager.UpdatePresence(memoryReader.CurrentState, ConfigManager.CurrentConfig);
-
-        if (memoryReader.IsConnected)
+        Logger.Info("Headless: waiting for Terraria to start (up to 3 attempts, 5s apart)...");
+        bool found = false;
+        for (int attempt = 1; attempt <= MaxMisses; attempt++)
         {
-          _terrariaEverDetected = true;
-          _consecutiveMisses = 0;
-        }
-        else if (_terrariaEverDetected)
-        {
-          _consecutiveMisses++;
-          Logger.Info($"Terraria connection lost ({_consecutiveMisses}/{MaxMisses})...");
-
-          if (_consecutiveMisses >= MaxMisses)
+          if (Process.GetProcessesByName("Terraria").Any())
           {
-            Logger.Info("Terraria closed — headless mode exiting after 3 missed connections.");
-            keepRunning = false;
-            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-            {
-              SingleInstance.Release();
-              Environment.Exit(0);
-            });
+            Logger.Info($"Terraria detected on attempt {attempt}.");
+            found = true;
             break;
+          }
+
+          Logger.Info($"Attempt {attempt}/{MaxMisses}: Terraria not found. Waiting 5s...");
+          Thread.Sleep(5000);
+        }
+
+        if (!found)
+        {
+          Logger.Info("Terraria not found after 3 attempts - exiting headless mode.");
+          SingleInstance.Release();
+          return;
+        }
+      }
+
+      var cancellationSource = new CancellationTokenSource();
+      var memoryReader = new TerrariaMemoryReader();
+      Task readerTask = ReaderLoopAsync(memoryReader, cancellationSource.Token);
+      Task presenceTask = PresenceLoopAsync(noGui, memoryReader, cancellationSource);
+
+      Logger.Info("Starting Avalonia Framework...");
+      try
+      {
+        BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+      }
+      finally
+      {
+        cancellationSource.Cancel();
+
+        try
+        {
+          Task.WaitAll([readerTask, presenceTask], TimeSpan.FromSeconds(2));
+        }
+        catch (AggregateException ex)
+        {
+          foreach (var inner in ex.Flatten().InnerExceptions)
+            Logger.Warn($"Background task shutdown issue: {inner.Message}");
+        }
+        catch (Exception ex)
+        {
+          Logger.Warn($"Background task shutdown issue: {ex.Message}");
+        }
+
+        SingleInstance.Release();
+        Logger.Info("Application exited.");
+      }
+    }
+
+    private static async Task ReaderLoopAsync(TerrariaMemoryReader memoryReader, CancellationToken cancellationToken)
+    {
+      Logger.Info("Reader loop started.");
+      using var timer = new PeriodicTimer(ReaderInterval);
+
+      try
+      {
+        while (await timer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false))
+        {
+          try
+          {
+            memoryReader.Update();
+          }
+          catch (Exception ex)
+          {
+            Logger.Error($"Reader loop error: {ex.Message}");
           }
         }
       }
-      catch (Exception ex)
+      catch (OperationCanceledException)
       {
-        Logger.Error($"RPC loop error: {ex.Message}");
       }
 
-      for (int i = 0; i < 50 && keepRunning; i++)
-        Thread.Sleep(100);
+      Logger.Info("Reader loop stopped.");
     }
 
-    Logger.Info("Headless RPC loop stopped.");
-  }
+    private static async Task PresenceLoopAsync(bool noGui, TerrariaMemoryReader memoryReader, CancellationTokenSource cancellationSource)
+    {
+      var iconManager = new IconManager();
+      using var rpcManager = new DiscordRpcManager(iconManager);
+      Logger.Info(noGui ? "Presence loop started (headless mode)." : "Presence loop started (GUI mode).");
+      using var timer = new PeriodicTimer(PresenceInterval);
 
-  public static AppBuilder BuildAvaloniaApp()
+      try
+      {
+        while (await timer.WaitForNextTickAsync(cancellationSource.Token).ConfigureAwait(false))
+        {
+          try
+          {
+            TerrariaGameState snapshot = memoryReader.GetStateSnapshot();
+            rpcManager.UpdatePresence(snapshot, ConfigManager.CurrentConfig);
+
+            if (noGui)
+            {
+              if (snapshot.IsAttached)
+              {
+                _terrariaEverDetected = true;
+                _consecutiveMisses = 0;
+              }
+              else if (_terrariaEverDetected)
+              {
+                _consecutiveMisses++;
+                Logger.Info($"Terraria connection lost ({_consecutiveMisses}/{MaxMisses})...");
+
+                if (_consecutiveMisses >= MaxMisses)
+                {
+                  Logger.Info("Terraria closed - headless mode exiting after 3 missed connections.");
+                  cancellationSource.Cancel();
+                  Dispatcher.UIThread.Post(() =>
+                  {
+                    SingleInstance.Release();
+                    Environment.Exit(0);
+                  });
+                  break;
+                }
+              }
+            }
+          }
+          catch (Exception ex)
+          {
+            Logger.Error($"Presence loop error: {ex.Message}");
+          }
+        }
+      }
+      catch (OperationCanceledException)
+      {
+      }
+
+      Logger.Info("Presence loop stopped.");
+    }
+
+    public static AppBuilder BuildAvaloniaApp()
       => AppBuilder.Configure<App>()
-          .UsePlatformDetect()
-          .WithInterFont()
-          .LogToTrace();
+        .UsePlatformDetect()
+        .WithInterFont()
+        .LogToTrace();
+  }
 }

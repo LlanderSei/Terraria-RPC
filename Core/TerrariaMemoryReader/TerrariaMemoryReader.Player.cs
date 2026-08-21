@@ -91,71 +91,72 @@ namespace TerrariaRPC.Core
                   }
 
                   // -- Weapon Damage & DPS ------------------------------------------------
-                  int weaponDamage = 0;
+                  int currentWeaponDamage = 0;
+                  bool hasDamageableWeapon = false;
                   if (itemObj.IsValid)
                   {
                     int baseDamage = itemObj.ReadField<int>("damage");
-                    float multiplier = 1f;
+                    hasDamageableWeapon = baseDamage > 0;
 
-                    if (itemObj.ReadField<bool>("melee"))
-                      multiplier = playerObj.ReadField<float>("meleeDamage");
-                    else if (itemObj.ReadField<bool>("magic"))
-                      multiplier = playerObj.ReadField<float>("magicDamage");
-                    else if (itemObj.ReadField<bool>("ranged"))
-                      multiplier = playerObj.ReadField<float>("rangedDamage");
-                    else if (itemObj.ReadField<bool>("summon"))
-                      multiplier = playerObj.ReadField<float>("minionDamage");
+                    if (hasDamageableWeapon)
+                    {
+                      float multiplier = 1f;
 
-                    weaponDamage = (int)(baseDamage * multiplier);
+                      if (itemObj.ReadField<bool>("melee"))
+                        multiplier = playerObj.ReadField<float>("meleeDamage");
+                      else if (itemObj.ReadField<bool>("magic"))
+                        multiplier = playerObj.ReadField<float>("magicDamage");
+                      else if (itemObj.ReadField<bool>("ranged"))
+                        multiplier = playerObj.ReadField<float>("rangedDamage");
+                      else if (itemObj.ReadField<bool>("summon"))
+                        multiplier = playerObj.ReadField<float>("minionDamage");
+
+                      currentWeaponDamage = (int)(baseDamage * multiplier);
+                    }
                   }
-                  
+
+                  if (hasDamageableWeapon && currentWeaponDamage > 0)
+                  {
+                    CurrentState.PlayerDynamicWeaponDmg = currentWeaponDamage;
+                    if (currentWeaponDamage > CurrentState.PlayerHighestWeaponDmg)
+                      CurrentState.PlayerHighestWeaponDmg = currentWeaponDamage;
+                  }
+
                   int currentDps = 0;
                   int dpsDamage = playerObj.ReadField<int>("dpsDamage");
                   if (dpsDamage > 0)
                   {
-                    var startObj = playerObj.ReadValueTypeField("dpsStart");
-                    var endObj = playerObj.ReadValueTypeField("dpsEnd");
-                    var lastHitObj = playerObj.ReadValueTypeField("dpsLastHit");
-                    if (startObj.IsValid && endObj.IsValid && lastHitObj.IsValid)
+                    try
                     {
-                      try
+                      DateTime startTime = playerObj.ReadField<DateTime>("dpsStart");
+                      DateTime endTime = playerObj.ReadField<DateTime>("dpsEnd");
+                      DateTime lastHitTime = playerObj.ReadField<DateTime>("dpsLastHit");
+
+                      // Ignore impossible timer windows so a garbage read cannot poison the session max.
+                      if (startTime <= endTime && lastHitTime <= DateTime.Now.AddSeconds(5) && (DateTime.Now - lastHitTime).TotalSeconds <= 2.0)
                       {
-                        long lastHitTicks = (long)lastHitObj.ReadField<ulong>("dateData");
-                        long startTicks = (long)startObj.ReadField<ulong>("dateData");
-                        long endTicks = (long)endObj.ReadField<ulong>("dateData");
-
-                        DateTime lastHitTime = DateTime.FromBinary(lastHitTicks);
-                        DateTime startTime = DateTime.FromBinary(startTicks);
-                        DateTime endTime = DateTime.FromBinary(endTicks);
-
-                        // Ignore impossible timer windows so a garbage read cannot poison the session max.
-                        if (startTime <= endTime && lastHitTime <= DateTime.Now.AddSeconds(5) && (DateTime.Now - lastHitTime).TotalSeconds <= 2.0)
-                        {
-                          double seconds = (endTime - startTime).TotalSeconds;
-                          if (seconds > 0.0)
-                            currentDps = (int)(dpsDamage / Math.Max(1.0, seconds));
-                        }
+                        double seconds = (endTime - startTime).TotalSeconds;
+                        if (seconds >= 0.25)
+                          currentDps = (int)(dpsDamage / seconds);
                       }
-                      catch { }
                     }
+                    catch { }
                   }
 
-                  int currentMaxAtk = Math.Max(weaponDamage, currentDps);
-                  if (currentMaxAtk > CurrentState.HighestRecordedAtk)
-                  {
-                    CurrentState.HighestRecordedAtk = currentMaxAtk;
-                  }
+                  CurrentState.PlayerDynamicDps = currentDps;
+                  if (currentDps > CurrentState.PlayerHighestDps)
+                    CurrentState.PlayerHighestDps = currentDps;
 
-                  if (CurrentState.HighestRecordedAtk > 0)
-                  {
-                    CurrentState.PlayerAtk = CurrentState.HighestRecordedAtk.ToString();
-                  }
+                  CurrentState.HighestRecordedAtk = CurrentState.PlayerHighestWeaponDmg;
+                  CurrentState.PlayerAtk = CurrentState.PlayerHighestWeaponDmg > 0
+                    ? CurrentState.PlayerHighestWeaponDmg.ToString()
+                    : "N/A";
 
-                  if (currentMaxAtk > 100000)
+                  if (currentWeaponDamage > 100000 || currentDps > 100000)
                   {
                     int loggedItemType = itemObj.ReadField<int>("type");
                     int loggedBaseDamage = itemObj.ReadField<int>("damage");
-                    Logger.Warn($"Suspicious attack sample: item={_lastAtkItemSignature} itemType={loggedItemType} base={loggedBaseDamage} weapon={weaponDamage} dpsDamage={dpsDamage} currentDps={currentDps} max={currentMaxAtk}");
+                    Logger.Warn($"Suspicious attack sample: item={_lastAtkItemSignature} itemType={loggedItemType} base={loggedBaseDamage} weapon={currentWeaponDamage} dpsDamage={dpsDamage} currentDps={currentDps} highestWeapon={CurrentState.PlayerHighestWeaponDmg} highestDps={CurrentState.PlayerHighestDps}");
                   }
                 }
               }

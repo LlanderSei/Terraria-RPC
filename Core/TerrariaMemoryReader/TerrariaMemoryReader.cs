@@ -56,6 +56,10 @@ namespace TerrariaRPC.Core
     public int PlayerMaxMp { get; set; } = 20;
     public string PlayerAtk { get; set; } = "N/A";
     public int HighestRecordedAtk { get; set; } = 0;
+    public int PlayerHighestWeaponDmg { get; set; } = 0;
+    public int PlayerHighestDps { get; set; } = 0;
+    public int PlayerDynamicWeaponDmg { get; set; } = 0;
+    public int PlayerDynamicDps { get; set; } = 0;
     public int PlayerDef { get; set; } = 0;
     public string PlayerItemHeld { get; set; } = "";
     public string PlayerItemPrefix { get; set; } = "";
@@ -124,6 +128,51 @@ namespace TerrariaRPC.Core
     // -- Weather Event Info -------------------------------------------------
     public bool HasActiveWeather => !string.IsNullOrEmpty(ActiveWeatherName);
     public string ActiveWeatherName { get; set; } = ""; // e.g. "Rain", "Thunderstorm", "Sandstorm", "Windy Day"
+
+    public TerrariaGameState Clone()
+    {
+      return new TerrariaGameState
+      {
+        IsAttached = IsAttached,
+        RawMenuMode = RawMenuMode,
+        NetMode = NetMode,
+        GameMenu = GameMenu,
+        WorldName = WorldName,
+        Screen = Screen,
+        Biome = Biome,
+        PlayerHp = PlayerHp,
+        PlayerMaxHp = PlayerMaxHp,
+        PlayerMp = PlayerMp,
+        PlayerMaxMp = PlayerMaxMp,
+        PlayerAtk = PlayerAtk,
+        HighestRecordedAtk = HighestRecordedAtk,
+        PlayerHighestWeaponDmg = PlayerHighestWeaponDmg,
+        PlayerHighestDps = PlayerHighestDps,
+        PlayerDynamicWeaponDmg = PlayerDynamicWeaponDmg,
+        PlayerDynamicDps = PlayerDynamicDps,
+        PlayerDef = PlayerDef,
+        PlayerItemHeld = PlayerItemHeld,
+        PlayerItemPrefix = PlayerItemPrefix,
+        WorldSeed = WorldSeed,
+        WorldSize = WorldSize,
+        WorldEvil = WorldEvil,
+        WorldRawDifficulty = WorldRawDifficulty,
+        WorldDifficulty = WorldDifficulty,
+        WorldIsHardmode = WorldIsHardmode,
+        WorldSpecialSeeds = WorldSpecialSeeds.ToArray(),
+        WorldSecretSeeds = WorldSecretSeeds.ToArray(),
+        UIStateName = UIStateName,
+        ActiveBossName = ActiveBossName,
+        ActiveBossHp = ActiveBossHp,
+        ActiveBossMaxHp = ActiveBossMaxHp,
+        ActiveEventName = ActiveEventName,
+        ActiveEventProgress = ActiveEventProgress,
+        ActiveEventWaveNum = ActiveEventWaveNum,
+        ActiveNonProgressiveEventName = ActiveNonProgressiveEventName,
+        ActivePeacefulEventName = ActivePeacefulEventName,
+        ActiveWeatherName = ActiveWeatherName
+      };
+    }
   }
 
   public partial class TerrariaMemoryReader
@@ -155,6 +204,7 @@ namespace TerrariaRPC.Core
     private int _lastGolemMaxHp         = 0;
     private int _lastMoonLordMaxHp      = 0;
     private string _lastAtkItemSignature = "";
+    private readonly object _stateLock = new();
 
     public bool Attach()
     {
@@ -215,46 +265,57 @@ namespace TerrariaRPC.Core
       return null;
     }
 
+    public TerrariaGameState GetStateSnapshot()
+    {
+      lock (_stateLock)
+      {
+        return CurrentState.Clone();
+      }
+    }
+
     public void Update()
     {
       if (!Attach()) return;
 
-      try
+      lock (_stateLock)
       {
-        using DataTarget dataTarget = DataTarget.AttachToProcess(
-          terrariaProcess!.Id,
-          suspend: false
-        );
-
-        using ClrRuntime? runtime = dataTarget.ClrVersions.FirstOrDefault()?.CreateRuntime();
-        if (runtime == null) return;
-
-        ClrAppDomain appDomain = runtime.AppDomains.First();
-
-        // Find core types - use cached MethodTable for O(1) lookup on subsequent ticks.
-        ClrType? mainType     = TryGetCachedType(runtime, ref _mainTypeMT,     "Terraria.Main");
-        ClrType? worldGenType = TryGetCachedType(runtime, ref _worldGenTypeMT,  "Terraria.WorldGen");
-        ClrType? playerType   = TryGetCachedType(runtime, ref _playerTypeMT,    "Terraria.Player");
-
-        if (mainType == null)
+        try
         {
-          Logger.Warn("Could not locate Terraria.Main type.");
+          using DataTarget dataTarget = DataTarget.AttachToProcess(
+            terrariaProcess!.Id,
+            suspend: false
+          );
+
+          using ClrRuntime? runtime = dataTarget.ClrVersions.FirstOrDefault()?.CreateRuntime();
+          if (runtime == null) return;
+
+          ClrAppDomain appDomain = runtime.AppDomains.First();
+
+          // Find core types - use cached MethodTable for O(1) lookup on subsequent ticks.
+          ClrType? mainType     = TryGetCachedType(runtime, ref _mainTypeMT,     "Terraria.Main");
+          ClrType? worldGenType = TryGetCachedType(runtime, ref _worldGenTypeMT,  "Terraria.WorldGen");
+          ClrType? playerType   = TryGetCachedType(runtime, ref _playerTypeMT,    "Terraria.Player");
+
+          if (mainType == null)
+          {
+            Logger.Warn("Could not locate Terraria.Main type.");
+            return;
+          }
+
+          ReadMenuState(runtime, appDomain, mainType);
+          ReadWorldState(runtime, appDomain, mainType, worldGenType);
+          ReadPlayerState(runtime, appDomain, mainType, playerType);
+          ScanBossesAndEvents(runtime, appDomain, mainType);
+        }
+        catch (Exception ex)
+        {
+          Logger.Error($"ClrMD read failed: {ex.Message}\n{ex}");
           return;
         }
 
-        ReadMenuState(runtime, appDomain, mainType);
-        ReadWorldState(runtime, appDomain, mainType, worldGenType);
-        ReadPlayerState(runtime, appDomain, mainType, playerType);
-        ScanBossesAndEvents(runtime, appDomain, mainType);
+        ResolveScreen();
+        PrintState();
       }
-      catch (Exception ex)
-      {
-        Logger.Error($"ClrMD read failed: {ex.Message}\n{ex}");
-        return;
-      }
-
-      ResolveScreen();
-      PrintState();
     }
   }
 }

@@ -24,7 +24,11 @@ public partial class VariablesDialog : Window
     ("{{WorldSecretSeedsAsNum}}", "Number of active secret seeds (e.g. 2)",                                   "#ffcc80"),
     ("---", "", ""),
     // ── Player ─────────────────────────────────────────────────────────────
-    ("{{PlayerAtk}}",             "Highest weapon damage or DPS output this session (N/A before first use)", "#a5d6a7"),
+    ("{{PlayerAtk}}",             "Legacy highest weapon damage this session",                                 "#a5d6a7"),
+    ("{{PlayerHighestWeaponDmg}}", "Highest weapon damage this session",                                        "#a5d6a7"),
+    ("{{PlayerHighestDps}}",      "Highest DPS dealt this session",                                           "#a5d6a7"),
+    ("{{PlayerDynamicWeaponDmg}}", "Live weapon damage for the currently held item",                           "#a5d6a7"),
+    ("{{PlayerDynamicDps}}",      "Live DPS sample from the current update",                                  "#a5d6a7"),
     ("{{PlayerDef}}",             "Total defense (armor + accessories + buffs)",                              "#a5d6a7"),
     ("{{PlayerHp}}",              "Current HP",                                                               "#a5d6a7"),
     ("{{PlayerMaxHp}}",           "Maximum HP (Life Crystals, Life Fruits, accessories)",                    "#a5d6a7"),

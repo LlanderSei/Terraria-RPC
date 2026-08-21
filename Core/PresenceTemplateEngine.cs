@@ -9,6 +9,8 @@ namespace TerrariaRPC.Core
     {
       if (string.IsNullOrEmpty(template)) return "";
 
+      static string StatText(int value) => value > 0 ? value.ToString() : "N/A";
+
       string bossOrEventText = "";
       if (state.HasActiveBoss) bossOrEventText = state.ActiveBossText;
       else if (state.HasActiveEvent) bossOrEventText = state.ActiveEventText;
@@ -36,6 +38,10 @@ namespace TerrariaRPC.Core
         { "{{PlayerMp}}",                       state.PlayerMp.ToString() },
         { "{{PlayerMaxMp}}",                    state.PlayerMaxMp.ToString() },
         { "{{PlayerAtk}}",                      state.PlayerAtk },
+        { "{{PlayerHighestWeaponDmg}}",         StatText(state.PlayerHighestWeaponDmg) },
+        { "{{PlayerHighestDps}}",               StatText(state.PlayerHighestDps) },
+        { "{{PlayerDynamicWeaponDmg}}",         StatText(state.PlayerDynamicWeaponDmg) },
+        { "{{PlayerDynamicDps}}",               StatText(state.PlayerDynamicDps) },
         { "{{PlayerDef}}",                      state.PlayerDef.ToString() },
         { "{{PlayerItemHeld}}",                 state.PlayerItemHeld },
 
