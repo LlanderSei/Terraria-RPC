@@ -9,10 +9,12 @@ namespace TerrariaRPC.Core
         private IconManager iconManager;
         private ActiveBossEventManager bossEventManager = new ActiveBossEventManager();
         private string currentClientId = "";
+        private readonly DateTime sessionStartUtc;
 
         public DiscordRpcManager(IconManager iconManager)
         {
             this.iconManager = iconManager;
+            sessionStartUtc = DateTime.UtcNow;
         }
 
         private void EnsureClient(string clientId)
@@ -167,6 +169,7 @@ namespace TerrariaRPC.Core
             {
                 Details = title,
                 State = subtitle1,
+                Timestamps = new Timestamps(sessionStartUtc),
                 Assets = new Assets()
                 {
                     LargeImageKey = string.IsNullOrEmpty(largeIconUrl) ? null : largeIconUrl,
