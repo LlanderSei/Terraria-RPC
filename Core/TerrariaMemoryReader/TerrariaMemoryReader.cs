@@ -89,13 +89,32 @@ namespace TerrariaRPC.Core
     public string ActiveBossName { get; set; } = "";
     public int ActiveBossHp { get; set; } = 0;
     public int ActiveBossMaxHp { get; set; } = 0;
-    public string ActiveBossText => HasActiveBoss ? $"Fighting: {ActiveBossName} ({ActiveBossHp}/{ActiveBossMaxHp})" : "";
+    public bool ActiveBossHasShield { get; set; } = false;
+    public int ActiveBossSp { get; set; } = 0;
+    public int ActiveBossMaxSp { get; set; } = 0;
+    public string ActiveBossText
+    {
+      get
+      {
+        if (!HasActiveBoss) return "";
+        if (ActiveBossHasShield)
+          return $"Fighting: {ActiveBossName} ({ActiveBossSp}/{ActiveBossMaxSp})";
+        return $"Fighting: {ActiveBossName} ({ActiveBossHp}/{ActiveBossMaxHp})";
+      }
+    }
 
     // -- Active Progressive Event Info --------------------------------------
     public bool HasActiveEvent => !string.IsNullOrEmpty(ActiveEventName);
+    public string ActiveProgressiveEventName => ActiveEventName;
     public string ActiveEventName { get; set; } = "";
     public int ActiveEventProgress { get; set; } = -1; // -1 if non-% (e.g. Slime Rain)
     public int ActiveEventWaveNum { get; set; } = -1; // -1 if no wave number
+    public bool ActiveEventHasWaves => ActiveEventWaveNum > 0;
+    public bool ActiveEventHasProgress { get; set; } = false;
+    public bool ActiveEventIsAtMaxWave { get; set; } = false;
+    public bool ActiveEventIsAtMaxProgression { get; set; } = false;
+    public int ActiveEventProgression { get; set; } = -1;
+    public int ActiveEventPoints { get; set; } = 0;
 
     public string ActiveEventText
     {
@@ -123,7 +142,8 @@ namespace TerrariaRPC.Core
 
     // -- Peaceful Event Info ------------------------------------------------
     public bool HasActivePeacefulEvent => !string.IsNullOrEmpty(ActivePeacefulEventName);
-    public string ActivePeacefulEventName { get; set; } = ""; // e.g. "Party is occurring.", "Lantern Night is occurring"
+    public string ActivePeacefulEventName { get; set; } = ""; // e.g. "Party", "Lantern Night", "Starfall"
+    public string ActivePeacefulEventValue { get; set; } = ""; // e.g. "Party", "LanternNight", "Starfall"
 
     // -- Weather Event Info -------------------------------------------------
     public bool HasActiveWeather => !string.IsNullOrEmpty(ActiveWeatherName);
@@ -165,11 +185,20 @@ namespace TerrariaRPC.Core
         ActiveBossName = ActiveBossName,
         ActiveBossHp = ActiveBossHp,
         ActiveBossMaxHp = ActiveBossMaxHp,
+        ActiveBossHasShield = ActiveBossHasShield,
+        ActiveBossSp = ActiveBossSp,
+        ActiveBossMaxSp = ActiveBossMaxSp,
         ActiveEventName = ActiveEventName,
         ActiveEventProgress = ActiveEventProgress,
         ActiveEventWaveNum = ActiveEventWaveNum,
+        ActiveEventHasProgress = ActiveEventHasProgress,
+        ActiveEventIsAtMaxWave = ActiveEventIsAtMaxWave,
+        ActiveEventIsAtMaxProgression = ActiveEventIsAtMaxProgression,
+        ActiveEventProgression = ActiveEventProgression,
+        ActiveEventPoints = ActiveEventPoints,
         ActiveNonProgressiveEventName = ActiveNonProgressiveEventName,
         ActivePeacefulEventName = ActivePeacefulEventName,
+        ActivePeacefulEventValue = ActivePeacefulEventValue,
         ActiveWeatherName = ActiveWeatherName
       };
     }

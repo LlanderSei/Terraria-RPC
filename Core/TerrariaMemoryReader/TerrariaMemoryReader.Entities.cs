@@ -13,13 +13,22 @@ namespace TerrariaRPC.Core
       CurrentState.ActiveBossName = "";
       CurrentState.ActiveBossHp = 0;
       CurrentState.ActiveBossMaxHp = 0;
+      CurrentState.ActiveBossHasShield = false;
+      CurrentState.ActiveBossSp = 0;
+      CurrentState.ActiveBossMaxSp = 0;
 
       CurrentState.ActiveEventName = "";
       CurrentState.ActiveEventProgress = -1;
       CurrentState.ActiveEventWaveNum = -1;
+      CurrentState.ActiveEventHasProgress = false;
+      CurrentState.ActiveEventIsAtMaxWave = false;
+      CurrentState.ActiveEventIsAtMaxProgression = false;
+      CurrentState.ActiveEventProgression = -1;
+      CurrentState.ActiveEventPoints = 0;
 
       CurrentState.ActiveNonProgressiveEventName = "";
       CurrentState.ActivePeacefulEventName = "";
+      CurrentState.ActivePeacefulEventValue = "";
       CurrentState.ActiveWeatherName = "";
 
       if (CurrentState.GameMenu || (CurrentState.Screen != GameScreen.InGameSinglePlayer && CurrentState.Screen != GameScreen.InGameMultiplayer)) return;
@@ -54,6 +63,8 @@ namespace TerrariaRPC.Core
               int golemLife = 0, golemLifeMax = 0, golemCount = 0;
               // Moon Lord tracking: combine the core, hands, and head.
               int moonLordLife = 0, moonLordLifeMax = 0, moonLordCount = 0;
+              // Pillar tracking: combine all pillars into one Celestial Pillars total.
+              int pillarLife = 0, pillarLifeMax = 0, pillarShield = 0, pillarShieldMax = 0, pillarCount = 0;
 
               for (int i = 0; i < len; i++)
               {
@@ -142,21 +153,12 @@ namespace TerrariaRPC.Core
                   {
                     int shield = GetPillarShield(mainType, appDomain, type);
                     int maxShield = GetPillarMaxShield(mainType, appDomain);
-
-                    if (shield > 0)
-                    {
-                      bestBossName = typeName;
-                      bestBossHp = shield;
-                      bestBossMaxHp = maxShield > 0 ? maxShield : shield;
-                      break;
-                    }
-                    else
-                    {
-                      bestBossName = typeName;
-                      bestBossHp = life;
-                      bestBossMaxHp = lifeMax;
-                      break;
-                    }
+                    pillarLife += life;
+                    pillarLifeMax += lifeMax;
+                    pillarShield += shield;
+                    pillarShieldMax += maxShield > 0 ? maxShield : shield;
+                    pillarCount++;
+                    continue;
                   }
 
                   if (lifeMax > highestMaxHp)
@@ -271,11 +273,37 @@ namespace TerrariaRPC.Core
                 _lastMoonLordMaxHp = 0;
               }
 
+              if (pillarCount > 0)
+              {
+                bestBossName = "Celestial Pillars";
+                if (pillarShield > 0)
+                {
+                  bestBossHp = pillarShield;
+                  bestBossMaxHp = pillarShieldMax > 0 ? pillarShieldMax : pillarShield;
+                  CurrentState.ActiveBossHasShield = true;
+                  CurrentState.ActiveBossSp = pillarShield;
+                  CurrentState.ActiveBossMaxSp = pillarShieldMax > 0 ? pillarShieldMax : pillarShield;
+                }
+                else
+                {
+                  bestBossHp = pillarLife;
+                  bestBossMaxHp = pillarLifeMax;
+                  CurrentState.ActiveBossHasShield = false;
+                  CurrentState.ActiveBossSp = 0;
+                  CurrentState.ActiveBossMaxSp = 0;
+                }
+              }
+
               if (!string.IsNullOrEmpty(bestBossName))
               {
                 CurrentState.ActiveBossName = bestBossName;
                 CurrentState.ActiveBossHp = bestBossHp;
                 CurrentState.ActiveBossMaxHp = bestBossMaxHp;
+                if (!CurrentState.ActiveBossHasShield)
+                {
+                  CurrentState.ActiveBossSp = 0;
+                  CurrentState.ActiveBossMaxSp = 0;
+                }
               }
             }
           }
@@ -345,8 +373,13 @@ namespace TerrariaRPC.Core
 
             int pct = (intermissionTime > 0 || invasionProgressMax <= 1) ? 100 : (invasionProgressMax > 0 ? (int)(invasionProgress * 100.0 / invasionProgressMax) : -1);
             CurrentState.ActiveEventName = "Old One's Army";
+            CurrentState.ActiveEventHasProgress = true;
             CurrentState.ActiveEventProgress = pct >= 0 ? Math.Min(100, pct) : -1;
+            CurrentState.ActiveEventProgression = CurrentState.ActiveEventProgress;
+            CurrentState.ActiveEventPoints = invasionProgress;
             CurrentState.ActiveEventWaveNum = dd2Wave > 0 ? dd2Wave : 1;
+            CurrentState.ActiveEventIsAtMaxWave = false;
+            CurrentState.ActiveEventIsAtMaxProgression = CurrentState.ActiveEventProgress >= 100;
           }
           else
           {
@@ -372,24 +405,44 @@ namespace TerrariaRPC.Core
             };
             int pct = invasionProgressMax > 0 ? (int)(invasionProgress * 100.0 / invasionProgressMax) : 0;
             CurrentState.ActiveEventName = invName;
+            CurrentState.ActiveEventHasProgress = true;
             CurrentState.ActiveEventProgress = Math.Min(100, Math.Max(0, pct));
+            CurrentState.ActiveEventProgression = CurrentState.ActiveEventProgress;
+            CurrentState.ActiveEventPoints = invasionProgress;
+            CurrentState.ActiveEventIsAtMaxWave = false;
+            CurrentState.ActiveEventIsAtMaxProgression = CurrentState.ActiveEventProgress >= 100;
           }
           else if (mainType.StaticFields.FirstOrDefault(f => f.Name == "slimeRain")?.Read<bool>(appDomain) ?? false)
           {
             CurrentState.ActiveEventName = "Slime Rain";
+            CurrentState.ActiveEventHasProgress = false;
             CurrentState.ActiveEventProgress = -1;
+            CurrentState.ActiveEventProgression = -1;
+            CurrentState.ActiveEventPoints = 0;
+            CurrentState.ActiveEventIsAtMaxWave = false;
+            CurrentState.ActiveEventIsAtMaxProgression = false;
           }
           else if (mainType.StaticFields.FirstOrDefault(f => f.Name == "pumpkinMoon")?.Read<bool>(appDomain) ?? false)
           {
             CurrentState.ActiveEventName = "Pumpkin Moon";
+            CurrentState.ActiveEventHasProgress = true;
             CurrentState.ActiveEventProgress = -1;
             CurrentState.ActiveEventWaveNum = invasionWave > 0 ? invasionWave : -1;
+            CurrentState.ActiveEventProgression = invasionProgressMax > 0 ? Math.Min(100, (int)(invasionProgress * 100.0 / invasionProgressMax)) : -1;
+            CurrentState.ActiveEventPoints = invasionProgress;
+            CurrentState.ActiveEventIsAtMaxWave = CurrentState.ActiveEventWaveNum >= 15;
+            CurrentState.ActiveEventIsAtMaxProgression = invasionProgressMax > 0 && invasionProgress >= invasionProgressMax;
           }
           else if (mainType.StaticFields.FirstOrDefault(f => f.Name == "snowMoon")?.Read<bool>(appDomain) ?? false)
           {
             CurrentState.ActiveEventName = "Frost Moon";
+            CurrentState.ActiveEventHasProgress = true;
             CurrentState.ActiveEventProgress = -1;
             CurrentState.ActiveEventWaveNum = invasionWave > 0 ? invasionWave : -1;
+            CurrentState.ActiveEventProgression = invasionProgressMax > 0 ? Math.Min(100, (int)(invasionProgress * 100.0 / invasionProgressMax)) : -1;
+            CurrentState.ActiveEventPoints = invasionProgress;
+            CurrentState.ActiveEventIsAtMaxWave = CurrentState.ActiveEventWaveNum >= 20;
+            CurrentState.ActiveEventIsAtMaxProgression = invasionProgressMax > 0 && invasionProgress >= invasionProgressMax;
           }
         }
 
@@ -405,11 +458,23 @@ namespace TerrariaRPC.Core
 
         // 4. Peaceful Events (Party, Lantern Night)
         var partyType = TryGetCachedType(runtime, ref _birthdayPartyTypeMT, "Terraria.GameContent.Events.BirthdayParty");
+        float starfallBoost = mainType.StaticFields.FirstOrDefault(f => f.Name == "starfallBoost")?.Read<float>(appDomain) ?? 1f;
+        bool starfall = !CurrentState.GameMenu && starfallBoost > 1.01f;
+        if (starfall)
+        {
+          CurrentState.ActivePeacefulEventName = "Starfall";
+          CurrentState.ActivePeacefulEventValue = "Starfall";
+        }
+
         if (partyType != null)
         {
           bool manualParty = partyType.StaticFields.FirstOrDefault(f => f.Name == "ManualParty")?.Read<bool>(appDomain) ?? false;
           bool genuineParty = partyType.StaticFields.FirstOrDefault(f => f.Name == "GenuineParty")?.Read<bool>(appDomain) ?? false;
-          if (manualParty || genuineParty) CurrentState.ActivePeacefulEventName = "Party is occurring.";
+          if (string.IsNullOrEmpty(CurrentState.ActivePeacefulEventName) && (manualParty || genuineParty))
+          {
+            CurrentState.ActivePeacefulEventName = "Party";
+            CurrentState.ActivePeacefulEventValue = "Party";
+          }
         }
         if (string.IsNullOrEmpty(CurrentState.ActivePeacefulEventName))
         {
@@ -418,40 +483,53 @@ namespace TerrariaRPC.Core
           {
             bool manualLanterns = lanternType.StaticFields.FirstOrDefault(f => f.Name == "ManualLanterns")?.Read<bool>(appDomain) ?? false;
             bool genuineLanterns = lanternType.StaticFields.FirstOrDefault(f => f.Name == "GenuineLanterns")?.Read<bool>(appDomain) ?? false;
-            if (manualLanterns || genuineLanterns) CurrentState.ActivePeacefulEventName = "Lantern Night is occurring";
+            if (manualLanterns || genuineLanterns)
+            {
+              CurrentState.ActivePeacefulEventName = "Lantern Night";
+              CurrentState.ActivePeacefulEventValue = "LanternNight";
+            }
           }
         }
 
         // 5. Weather Events (Rain, Thunderstorm, Sandstorm, Windy Day)
+        bool meteorShower = mainType.StaticFields.FirstOrDefault(f => f.Name == "_canShowMeteorFall")?.Read<bool>(appDomain) ?? false;
         var sandstormType = TryGetCachedType(runtime, ref _sandstormTypeMT, "Terraria.GameContent.Events.Sandstorm");
         bool isSandstorm = false;
-        if (sandstormType != null)
+        if (sandstormType != null && !meteorShower)
         {
           isSandstorm = sandstormType.StaticFields.FirstOrDefault(f => f.Name == "Happening")?.Read<bool>(appDomain) ?? false;
         }
 
-        if (isSandstorm)
+        if (meteorShower)
         {
-          CurrentState.ActiveWeatherName = "Sandstorm";
+          CurrentState.ActiveWeatherName = "Meteor Shower";
         }
         else
         {
-          bool isRaining = mainType.StaticFields.FirstOrDefault(f => f.Name == "raining")?.Read<bool>(appDomain) ?? false;
-          float maxRaining = mainType.StaticFields.FirstOrDefault(f => f.Name == "maxRaining")?.Read<float>(appDomain) ?? 0f;
-          float windSpeed = mainType.StaticFields.FirstOrDefault(f => f.Name == "windSpeedCurrent")?.Read<float>(appDomain) ?? 0f;
-
-          if (isRaining)
+          if (isSandstorm)
           {
-            if (maxRaining > 0.6f && Math.Abs(windSpeed) > 0.4f)
-              CurrentState.ActiveWeatherName = "Thunderstorm";
-            else
-              CurrentState.ActiveWeatherName = "Rain";
+            CurrentState.ActiveWeatherName = "Sandstorm";
           }
-          else if (Math.Abs(windSpeed) >= 0.4f)
+          else
           {
-            CurrentState.ActiveWeatherName = "Windy Day";
+            bool isRaining = mainType.StaticFields.FirstOrDefault(f => f.Name == "raining")?.Read<bool>(appDomain) ?? false;
+            float maxRaining = mainType.StaticFields.FirstOrDefault(f => f.Name == "maxRaining")?.Read<float>(appDomain) ?? 0f;
+            float windSpeed = mainType.StaticFields.FirstOrDefault(f => f.Name == "windSpeedCurrent")?.Read<float>(appDomain) ?? 0f;
+
+            if (isRaining)
+            {
+              if (maxRaining > 0.6f && Math.Abs(windSpeed) > 0.4f)
+                CurrentState.ActiveWeatherName = "Thunderstorm";
+              else
+                CurrentState.ActiveWeatherName = "Rain";
+            }
+            else if (Math.Abs(windSpeed) >= 0.4f)
+            {
+              CurrentState.ActiveWeatherName = "Windy Day";
+            }
           }
         }
+
       }
       catch (Exception ex)
       {

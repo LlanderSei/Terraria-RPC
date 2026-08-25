@@ -36,6 +36,13 @@ namespace TerrariaRPC.Core
         public bool IncludePeacefulEvents { get; set; } = false;
         public bool IncludeWeather { get; set; } = false;
 
+        // Small details templates
+        public string BossSmallTextTemplate { get; set; } = "Fighting: {{ActiveBoss}} ({{ActiveBossHasShield ? \"{{ActiveBossSp}}/{{ActiveBossMaxSp}}\" : \"{{ActiveBossHp}}/{{ActiveBossMaxHp}}\"}})";
+        public string ProgressiveEventSmallTextTemplate { get; set; } = "Clearing: {{ActiveProgressiveEvent}} ({{ActiveEventHasWaves ? \"Wave {{ActiveEventWaveNum}}: \" : \"\"}}{{ActiveEventHasProgress && !ActiveEventIsAtMaxWave ? \"{{ActiveEventProgression}}%\" : \"\"}}{{ActiveEventIsAtMaxWave && ActiveEventIsAtMaxProgression ? \"{{ActiveEventPoints}} pts\" : \"\"}})";
+        public string NonProgressiveEventSmallTextTemplate { get; set; } = "{{ActiveNonProgressiveEvent == \"Blood Moon\" ? \"The Blood Moon is rising...\" : ActiveNonProgressiveEvent == \"Solar Eclipse\" ? \"A Solar Eclipse is happening!\" : ActiveNonProgressiveEvent}}";
+        public string PeacefulEventSmallTextTemplate { get; set; } = "{{ActivePeacefulEvent}} is occuring.";
+        public string WeatherSmallTextTemplate { get; set; } = "{{ActiveWeather}}";
+
         // Discord settings
         public string ClientId { get; set; } = "1537768004119691335";
     }

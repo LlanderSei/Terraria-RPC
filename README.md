@@ -81,9 +81,13 @@ If you want to build the project yourself:
 4. This will compile a self-contained 32-bit application in `bin\Publish`. You can run `TerrariaRPC.exe` from there.
 
 ## Why Administrator mode?
-Because it needs to read Terraria's memory 🥺 and just giving surface level permission barely scratches it. Also, you can just read the code (if you're nerd or curious) or if you have trust issues, just don't download it. There's no sketchyahh virus in there that'll inject something or somewhat, it just running locally and sending your Terraria's stats/data to jewcord.
+Terraria-RPC reads live Terraria process memory so it can detect your stats, world state, bosses, events, and weather in real time. On Windows, that kind of process inspection is most reliable when the app is launched elevated, especially when Terraria is running in a different privilege context or when access to the process handle is restricted.
 
-*This is also using "agentic codign assist" 🤓, but not in a way like having a "multibillion doolar app" mindset, so I literally carefully curate and orchestrate alongside the build 🤓, if you're against with it just don't use this too 😭 lol...*
+In short: administrator mode is used so the reader can attach reliably and keep the Discord status updated without partial reads or failed scans.
+
+See [TECHNICAL_DOCUMENTATION.md](TECHNICAL_DOCUMENTATION.md) for a short summary and a deeper explanation of why elevation is needed.
+
+*This project is also using "agentic codign assist" 🤓, but not in a way like having a "multibillion doolar app" mindset, so I literally carefully curate and orchestrate alongside the build 🤓, if you're against with it just don't use this too 😭 lol...*
 
 ## Images
 ![](Images/Demos/StatusMainMenu.png)

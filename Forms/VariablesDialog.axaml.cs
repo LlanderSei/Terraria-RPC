@@ -38,11 +38,26 @@ public partial class VariablesDialog : Window
     ("---", "", ""),
     // ── Boss & Events ──────────────────────────────────────────────────────
     ("{{ActiveBoss}}",            "Name of active boss (e.g. Eye of Cthulhu)",                                "#ce93d8"),
+    ("{{ActiveBossHasShield}}",   "True when the active boss uses shield-style health",                        "#ce93d8"),
+    ("{{ActiveBossSp}}",          "Current shield points for shielded bosses and pillars",                    "#ce93d8"),
+    ("{{ActiveBossMaxSp}}",       "Maximum shield points for shielded bosses and pillars",                    "#ce93d8"),
     ("{{ActiveBossHp}}",          "Current HP of active boss or pillar shield/hp",                            "#ce93d8"),
     ("{{ActiveBossMaxHp}}",       "Max HP of active boss or pillar shield/hp",                                "#ce93d8"),
     ("{{ActiveEvent}}",           "Name of active event (e.g. Goblin Invasion)",                              "#ce93d8"),
+    ("{{ActiveProgressiveEvent}}", "Name of the current progressive event",                                    "#ce93d8"),
+    ("{{ActiveEventHasWaves}}",   "True when the active event has a wave counter",                             "#ce93d8"),
+    ("{{ActiveEventHasProgress}}","True when the active event exposes percentage progress",                     "#ce93d8"),
+    ("{{ActiveEventIsAtMaxWave}}","True when the current wave is at its maximum",                               "#ce93d8"),
+    ("{{ActiveEventIsAtMaxProgression}}", "True when the current progression is at its maximum",                  "#ce93d8"),
     ("{{ActiveEventProgress}}",   "Completion percentage of active event (e.g. 90)",                          "#ce93d8"),
+    ("{{ActiveEventProgression}}", "Progress value for the active event",                                       "#ce93d8"),
     ("{{ActiveEventWaveNum}}",    "Current wave number of event (e.g. Pumpkin Moon, Frost Moon, OOA)",        "#ce93d8"),
+    ("{{ActiveEventPoints}}",     "Points counter used by late-wave moon events",                              "#ce93d8"),
+    ("{{ActiveNonProgressiveEvent}}", "Name of the active non-progressive event",                               "#ce93d8"),
+    ("{{ActiveNonProgressiveEventValue}}", "Raw value for the active non-progressive event",                    "#ce93d8"),
+    ("{{ActivePeacefulEvent}}",   "Display name of the active peaceful event",                                 "#ce93d8"),
+    ("{{ActivePeacefulEventValue}}", "Raw peaceful event key (Party, LanternNight, Starfall)",                  "#ce93d8"),
+    ("{{ActiveWeather}}",         "Current weather description",                                              "#ce93d8"),
     ("{{ActiveBossOrEventText}}", "Formatted text of current priority boss, event, or weather",               "#ce93d8"),
   ];
 
@@ -86,7 +101,7 @@ public partial class VariablesDialog : Window
     // Intro text
     stack.Children.Add(new TextBlock
     {
-      Text = "Use these tokens in Line 1 or Line 2. They are replaced live with your current game data.",
+      Text = "Use these tokens anywhere templates are accepted. Nested {{...}} expressions are supported, along with basic conditionals and comparisons.",
       TextWrapping = TextWrapping.Wrap,
       Opacity = 0.7,
       Margin = new(0, 0, 0, 12)

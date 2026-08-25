@@ -1,0 +1,47 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="TerrariaRPC.Forms.SmallDetailsTemplatesDialog"
+        Title="Customize Small Details"
+        Width="860" Height="720"
+        MinWidth="860" MinHeight="720"
+        WindowStartupLocation="CenterOwner"
+        Icon="avares://TerrariaRPC/Assets/icon.png">
+  <ScrollViewer>
+    <StackPanel Margin="16" Spacing="12">
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock Text="Small Details Templates" FontWeight="Bold" FontSize="18" VerticalAlignment="Center"/>
+        <Button Grid.Column="1"
+                Content="? Available Variables"
+                FontSize="12"
+                Padding="8,4"
+                Click="OnVariablesClick"/>
+      </Grid>
+
+      <TextBlock Text="Use expressions inside double brackets. Supported operators include ? : , ?? , &amp;&amp; , || , == , != , ! and parentheses. Nested {{...}} tokens are resolved before each expression is evaluated."
+                 TextWrapping="Wrap"
+                 Opacity="0.7"/>
+
+      <Grid ColumnDefinitions="220,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="8">
+        <TextBlock Grid.Row="0" Grid.Column="0" Text="Boss:" VerticalAlignment="Top" Margin="0,6,0,0"/>
+        <TextBox Name="BossTemplateBox" Grid.Row="0" Grid.Column="1" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="72"/>
+
+        <TextBlock Grid.Row="1" Grid.Column="0" Text="Progressive Event:" VerticalAlignment="Top" Margin="0,6,0,0"/>
+        <TextBox Name="ProgressiveEventTemplateBox" Grid.Row="1" Grid.Column="1" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="96"/>
+
+        <TextBlock Grid.Row="2" Grid.Column="0" Text="Non-progressive Event:" VerticalAlignment="Top" Margin="0,6,0,0"/>
+        <TextBox Name="NonProgressiveEventTemplateBox" Grid.Row="2" Grid.Column="1" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="72"/>
+
+        <TextBlock Grid.Row="3" Grid.Column="0" Text="Peaceful Event:" VerticalAlignment="Top" Margin="0,6,0,0"/>
+        <TextBox Name="PeacefulEventTemplateBox" Grid.Row="3" Grid.Column="1" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="64"/>
+
+        <TextBlock Grid.Row="4" Grid.Column="0" Text="Weather:" VerticalAlignment="Top" Margin="0,6,0,0"/>
+        <TextBox Name="WeatherTemplateBox" Grid.Row="4" Grid.Column="1" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="64"/>
+      </Grid>
+
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+        <Button Content="Cancel" Click="OnCancelClick"/>
+        <Button Name="SaveButton" Content="Save" Click="OnSaveClick"/>
+      </StackPanel>
+    </StackPanel>
+  </ScrollViewer>
+</Window>

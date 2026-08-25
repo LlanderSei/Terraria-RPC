@@ -100,6 +100,7 @@ namespace TerrariaRPC.Core
         {
           var json = File.ReadAllText(primaryConfigPath);
           fullConfig = JsonSerializer.Deserialize<FullIconsConfig>(json) ?? new FullIconsConfig();
+          MergeMissingDefaults(fullConfig, MakeDefaultConfig());
           Logger.Info($"Loaded icons.json");
         }
         catch (Exception ex)
@@ -147,6 +148,142 @@ namespace TerrariaRPC.Core
       catch (Exception ex)
       {
         Logger.Warn($"Failed to save icons.json: {ex.Message}");
+      }
+    }
+
+    private static void MergeMissingDefaults(FullIconsConfig current, FullIconsConfig defaults)
+    {
+      current.WorldIcons.SecretSeedIcon = string.IsNullOrEmpty(current.WorldIcons.SecretSeedIcon)
+        ? defaults.WorldIcons.SecretSeedIcon
+        : current.WorldIcons.SecretSeedIcon;
+      current.WorldIcons.CycleIntervalSecs = current.WorldIcons.CycleIntervalSecs <= 0
+        ? defaults.WorldIcons.CycleIntervalSecs
+        : current.WorldIcons.CycleIntervalSecs;
+
+      current.WorldIcons.DefaultIcons.Corrupt = string.IsNullOrEmpty(current.WorldIcons.DefaultIcons.Corrupt)
+        ? defaults.WorldIcons.DefaultIcons.Corrupt
+        : current.WorldIcons.DefaultIcons.Corrupt;
+      current.WorldIcons.DefaultIcons.CorruptHardmode = string.IsNullOrEmpty(current.WorldIcons.DefaultIcons.CorruptHardmode)
+        ? defaults.WorldIcons.DefaultIcons.CorruptHardmode
+        : current.WorldIcons.DefaultIcons.CorruptHardmode;
+      current.WorldIcons.DefaultIcons.Crimson = string.IsNullOrEmpty(current.WorldIcons.DefaultIcons.Crimson)
+        ? defaults.WorldIcons.DefaultIcons.Crimson
+        : current.WorldIcons.DefaultIcons.Crimson;
+      current.WorldIcons.DefaultIcons.CrimsonHardmode = string.IsNullOrEmpty(current.WorldIcons.DefaultIcons.CrimsonHardmode)
+        ? defaults.WorldIcons.DefaultIcons.CrimsonHardmode
+        : current.WorldIcons.DefaultIcons.CrimsonHardmode;
+
+      current.WorldIcons.SpecialSeedIcons.NotTheBees.Corrupt = string.IsNullOrEmpty(current.WorldIcons.SpecialSeedIcons.NotTheBees.Corrupt)
+        ? defaults.WorldIcons.SpecialSeedIcons.NotTheBees.Corrupt
+        : current.WorldIcons.SpecialSeedIcons.NotTheBees.Corrupt;
+      current.WorldIcons.SpecialSeedIcons.NotTheBees.CorruptHardmode = string.IsNullOrEmpty(current.WorldIcons.SpecialSeedIcons.NotTheBees.CorruptHardmode)
+        ? defaults.WorldIcons.SpecialSeedIcons.NotTheBees.CorruptHardmode
+        : current.WorldIcons.SpecialSeedIcons.NotTheBees.CorruptHardmode;
+      current.WorldIcons.SpecialSeedIcons.NotTheBees.Crimson = string.IsNullOrEmpty(current.WorldIcons.SpecialSeedIcons.NotTheBees.Crimson)
+        ? defaults.WorldIcons.SpecialSeedIcons.NotTheBees.Crimson
+        : current.WorldIcons.SpecialSeedIcons.NotTheBees.Crimson;
+      current.WorldIcons.SpecialSeedIcons.NotTheBees.CrimsonHardmode = string.IsNullOrEmpty(current.WorldIcons.SpecialSeedIcons.NotTheBees.CrimsonHardmode)
+        ? defaults.WorldIcons.SpecialSeedIcons.NotTheBees.CrimsonHardmode
+        : current.WorldIcons.SpecialSeedIcons.NotTheBees.CrimsonHardmode;
+
+      current.WorldIcons.SpecialSeedIcons.Drunk.Normal = string.IsNullOrEmpty(current.WorldIcons.SpecialSeedIcons.Drunk.Normal)
+        ? defaults.WorldIcons.SpecialSeedIcons.Drunk.Normal
+        : current.WorldIcons.SpecialSeedIcons.Drunk.Normal;
+      current.WorldIcons.SpecialSeedIcons.Drunk.Hardmode = string.IsNullOrEmpty(current.WorldIcons.SpecialSeedIcons.Drunk.Hardmode)
+        ? defaults.WorldIcons.SpecialSeedIcons.Drunk.Hardmode
+        : current.WorldIcons.SpecialSeedIcons.Drunk.Hardmode;
+
+      current.WorldIcons.SpecialSeedIcons.CelebrationMk10.Corrupt = string.IsNullOrEmpty(current.WorldIcons.SpecialSeedIcons.CelebrationMk10.Corrupt)
+        ? defaults.WorldIcons.SpecialSeedIcons.CelebrationMk10.Corrupt
+        : current.WorldIcons.SpecialSeedIcons.CelebrationMk10.Corrupt;
+      current.WorldIcons.SpecialSeedIcons.CelebrationMk10.CorruptHardmode = string.IsNullOrEmpty(current.WorldIcons.SpecialSeedIcons.CelebrationMk10.CorruptHardmode)
+        ? defaults.WorldIcons.SpecialSeedIcons.CelebrationMk10.CorruptHardmode
+        : current.WorldIcons.SpecialSeedIcons.CelebrationMk10.CorruptHardmode;
+      current.WorldIcons.SpecialSeedIcons.CelebrationMk10.Crimson = string.IsNullOrEmpty(current.WorldIcons.SpecialSeedIcons.CelebrationMk10.Crimson)
+        ? defaults.WorldIcons.SpecialSeedIcons.CelebrationMk10.Crimson
+        : current.WorldIcons.SpecialSeedIcons.CelebrationMk10.Crimson;
+      current.WorldIcons.SpecialSeedIcons.CelebrationMk10.CrimsonHardmode = string.IsNullOrEmpty(current.WorldIcons.SpecialSeedIcons.CelebrationMk10.CrimsonHardmode)
+        ? defaults.WorldIcons.SpecialSeedIcons.CelebrationMk10.CrimsonHardmode
+        : current.WorldIcons.SpecialSeedIcons.CelebrationMk10.CrimsonHardmode;
+
+      current.WorldIcons.SpecialSeedIcons.TheConstant.Corrupt = string.IsNullOrEmpty(current.WorldIcons.SpecialSeedIcons.TheConstant.Corrupt)
+        ? defaults.WorldIcons.SpecialSeedIcons.TheConstant.Corrupt
+        : current.WorldIcons.SpecialSeedIcons.TheConstant.Corrupt;
+      current.WorldIcons.SpecialSeedIcons.TheConstant.CorruptHardmode = string.IsNullOrEmpty(current.WorldIcons.SpecialSeedIcons.TheConstant.CorruptHardmode)
+        ? defaults.WorldIcons.SpecialSeedIcons.TheConstant.CorruptHardmode
+        : current.WorldIcons.SpecialSeedIcons.TheConstant.CorruptHardmode;
+      current.WorldIcons.SpecialSeedIcons.TheConstant.Crimson = string.IsNullOrEmpty(current.WorldIcons.SpecialSeedIcons.TheConstant.Crimson)
+        ? defaults.WorldIcons.SpecialSeedIcons.TheConstant.Crimson
+        : current.WorldIcons.SpecialSeedIcons.TheConstant.Crimson;
+      current.WorldIcons.SpecialSeedIcons.TheConstant.CrimsonHardmode = string.IsNullOrEmpty(current.WorldIcons.SpecialSeedIcons.TheConstant.CrimsonHardmode)
+        ? defaults.WorldIcons.SpecialSeedIcons.TheConstant.CrimsonHardmode
+        : current.WorldIcons.SpecialSeedIcons.TheConstant.CrimsonHardmode;
+
+      current.WorldIcons.SpecialSeedIcons.ForTheWorthy.Corrupt = string.IsNullOrEmpty(current.WorldIcons.SpecialSeedIcons.ForTheWorthy.Corrupt)
+        ? defaults.WorldIcons.SpecialSeedIcons.ForTheWorthy.Corrupt
+        : current.WorldIcons.SpecialSeedIcons.ForTheWorthy.Corrupt;
+      current.WorldIcons.SpecialSeedIcons.ForTheWorthy.CorruptHardmode = string.IsNullOrEmpty(current.WorldIcons.SpecialSeedIcons.ForTheWorthy.CorruptHardmode)
+        ? defaults.WorldIcons.SpecialSeedIcons.ForTheWorthy.CorruptHardmode
+        : current.WorldIcons.SpecialSeedIcons.ForTheWorthy.CorruptHardmode;
+      current.WorldIcons.SpecialSeedIcons.ForTheWorthy.Crimson = string.IsNullOrEmpty(current.WorldIcons.SpecialSeedIcons.ForTheWorthy.Crimson)
+        ? defaults.WorldIcons.SpecialSeedIcons.ForTheWorthy.Crimson
+        : current.WorldIcons.SpecialSeedIcons.ForTheWorthy.Crimson;
+      current.WorldIcons.SpecialSeedIcons.ForTheWorthy.CrimsonHardmode = string.IsNullOrEmpty(current.WorldIcons.SpecialSeedIcons.ForTheWorthy.CrimsonHardmode)
+        ? defaults.WorldIcons.SpecialSeedIcons.ForTheWorthy.CrimsonHardmode
+        : current.WorldIcons.SpecialSeedIcons.ForTheWorthy.CrimsonHardmode;
+
+      current.WorldIcons.SpecialSeedIcons.NoTraps.Corrupt = string.IsNullOrEmpty(current.WorldIcons.SpecialSeedIcons.NoTraps.Corrupt)
+        ? defaults.WorldIcons.SpecialSeedIcons.NoTraps.Corrupt
+        : current.WorldIcons.SpecialSeedIcons.NoTraps.Corrupt;
+      current.WorldIcons.SpecialSeedIcons.NoTraps.CorruptHardmode = string.IsNullOrEmpty(current.WorldIcons.SpecialSeedIcons.NoTraps.CorruptHardmode)
+        ? defaults.WorldIcons.SpecialSeedIcons.NoTraps.CorruptHardmode
+        : current.WorldIcons.SpecialSeedIcons.NoTraps.CorruptHardmode;
+      current.WorldIcons.SpecialSeedIcons.NoTraps.Crimson = string.IsNullOrEmpty(current.WorldIcons.SpecialSeedIcons.NoTraps.Crimson)
+        ? defaults.WorldIcons.SpecialSeedIcons.NoTraps.Crimson
+        : current.WorldIcons.SpecialSeedIcons.NoTraps.Crimson;
+      current.WorldIcons.SpecialSeedIcons.NoTraps.CrimsonHardmode = string.IsNullOrEmpty(current.WorldIcons.SpecialSeedIcons.NoTraps.CrimsonHardmode)
+        ? defaults.WorldIcons.SpecialSeedIcons.NoTraps.CrimsonHardmode
+        : current.WorldIcons.SpecialSeedIcons.NoTraps.CrimsonHardmode;
+
+      current.WorldIcons.SpecialSeedIcons.Remix.Corrupt = string.IsNullOrEmpty(current.WorldIcons.SpecialSeedIcons.Remix.Corrupt)
+        ? defaults.WorldIcons.SpecialSeedIcons.Remix.Corrupt
+        : current.WorldIcons.SpecialSeedIcons.Remix.Corrupt;
+      current.WorldIcons.SpecialSeedIcons.Remix.CorruptHardmode = string.IsNullOrEmpty(current.WorldIcons.SpecialSeedIcons.Remix.CorruptHardmode)
+        ? defaults.WorldIcons.SpecialSeedIcons.Remix.CorruptHardmode
+        : current.WorldIcons.SpecialSeedIcons.Remix.CorruptHardmode;
+      current.WorldIcons.SpecialSeedIcons.Remix.Crimson = string.IsNullOrEmpty(current.WorldIcons.SpecialSeedIcons.Remix.Crimson)
+        ? defaults.WorldIcons.SpecialSeedIcons.Remix.Crimson
+        : current.WorldIcons.SpecialSeedIcons.Remix.Crimson;
+      current.WorldIcons.SpecialSeedIcons.Remix.CrimsonHardmode = string.IsNullOrEmpty(current.WorldIcons.SpecialSeedIcons.Remix.CrimsonHardmode)
+        ? defaults.WorldIcons.SpecialSeedIcons.Remix.CrimsonHardmode
+        : current.WorldIcons.SpecialSeedIcons.Remix.CrimsonHardmode;
+
+      current.WorldIcons.SpecialSeedIcons.Skyblock.Default = string.IsNullOrEmpty(current.WorldIcons.SpecialSeedIcons.Skyblock.Default)
+        ? defaults.WorldIcons.SpecialSeedIcons.Skyblock.Default
+        : current.WorldIcons.SpecialSeedIcons.Skyblock.Default;
+
+      foreach (var kvp in defaults.BossIcons)
+      {
+        if (!current.BossIcons.TryGetValue(kvp.Key, out var existing) || string.IsNullOrEmpty(existing))
+          current.BossIcons[kvp.Key] = kvp.Value;
+      }
+
+      foreach (var kvp in defaults.EventIcons)
+      {
+        if (!current.EventIcons.TryGetValue(kvp.Key, out var existing) || string.IsNullOrEmpty(existing))
+          current.EventIcons[kvp.Key] = kvp.Value;
+      }
+
+      foreach (var kvp in defaults.PeacefulIcons)
+      {
+        if (!current.PeacefulIcons.TryGetValue(kvp.Key, out var existing) || string.IsNullOrEmpty(existing))
+          current.PeacefulIcons[kvp.Key] = kvp.Value;
+      }
+
+      foreach (var kvp in defaults.WeatherIcons)
+      {
+        if (!current.WeatherIcons.TryGetValue(kvp.Key, out var existing) || string.IsNullOrEmpty(existing))
+          current.WeatherIcons[kvp.Key] = kvp.Value;
       }
     }
 
@@ -272,11 +409,13 @@ namespace TerrariaRPC.Core
       },
       PeacefulIcons = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
       {
+        { "Starfall", "https://terraria.wiki.gg/wiki/Special:FilePath/Fallen%20Star.png" },
         { "Party", "https://terraria.wiki.gg/images/Bestiary_Party.png" },
         { "Lantern Night", "https://terraria.wiki.gg/images/Release_Lantern.png" }
       },
       WeatherIcons = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
       {
+        { "Meteor Shower", "https://terraria.wiki.gg/images/Bestiary_Meteor.png" },
         { "Rain", "https://terraria.wiki.gg/images/Bestiary_Rain.png" },
         { "Thunderstorm", "https://files.catbox.moe/nuazde.png" },
         { "Sandstorm", "https://terraria.wiki.gg/images/Bestiary_Sandstorm.png" },
@@ -342,6 +481,9 @@ namespace TerrariaRPC.Core
       if (string.IsNullOrEmpty(eventName)) return "";
       if (fullConfig.PeacefulIcons.TryGetValue(eventName, out var url) && !string.IsNullOrEmpty(url))
         return url;
+      if (eventName.Contains("Starfall", StringComparison.OrdinalIgnoreCase) &&
+          fullConfig.PeacefulIcons.TryGetValue("Starfall", out url) && !string.IsNullOrEmpty(url))
+        return url;
       if (eventName.Contains("Party", StringComparison.OrdinalIgnoreCase) &&
           fullConfig.PeacefulIcons.TryGetValue("Party", out url) && !string.IsNullOrEmpty(url))
         return url;
@@ -355,6 +497,9 @@ namespace TerrariaRPC.Core
     {
       if (string.IsNullOrEmpty(weatherName)) return "";
       if (fullConfig.WeatherIcons.TryGetValue(weatherName, out var url) && !string.IsNullOrEmpty(url))
+        return url;
+      if (weatherName.Contains("Meteor Shower", StringComparison.OrdinalIgnoreCase) &&
+          fullConfig.WeatherIcons.TryGetValue("Meteor Shower", out url) && !string.IsNullOrEmpty(url))
         return url;
       return "";
     }

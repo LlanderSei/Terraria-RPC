@@ -27,6 +27,41 @@ namespace TerrariaRPC.Core
     private int _rotationIndex = 0;
     private DateTime _lastRotationTime = DateTime.MinValue;
 
+    private static string ResolveBossText(TerrariaGameState state, RpcConfig config)
+    {
+      return string.IsNullOrWhiteSpace(config.BossSmallTextTemplate)
+        ? state.ActiveBossText
+        : PresenceTemplateEngine.Format(config.BossSmallTextTemplate, state);
+    }
+
+    private static string ResolveProgressiveEventText(TerrariaGameState state, RpcConfig config)
+    {
+      return string.IsNullOrWhiteSpace(config.ProgressiveEventSmallTextTemplate)
+        ? state.ActiveEventText
+        : PresenceTemplateEngine.Format(config.ProgressiveEventSmallTextTemplate, state);
+    }
+
+    private static string ResolveNonProgressiveEventText(TerrariaGameState state, RpcConfig config)
+    {
+      return string.IsNullOrWhiteSpace(config.NonProgressiveEventSmallTextTemplate)
+        ? state.ActiveNonProgressiveEventName
+        : PresenceTemplateEngine.Format(config.NonProgressiveEventSmallTextTemplate, state);
+    }
+
+    private static string ResolvePeacefulEventText(TerrariaGameState state, RpcConfig config)
+    {
+      return string.IsNullOrWhiteSpace(config.PeacefulEventSmallTextTemplate)
+        ? $"{state.ActivePeacefulEventName} is occuring."
+        : PresenceTemplateEngine.Format(config.PeacefulEventSmallTextTemplate, state);
+    }
+
+    private static string ResolveWeatherText(TerrariaGameState state, RpcConfig config)
+    {
+      return string.IsNullOrWhiteSpace(config.WeatherSmallTextTemplate)
+        ? state.ActiveWeatherName
+        : PresenceTemplateEngine.Format(config.WeatherSmallTextTemplate, state);
+    }
+
     /// <summary>
     /// Evaluates available active entities in priority order:
     /// Boss > Events > Non-progressive Events > Peaceful Events > Weather.
@@ -41,7 +76,7 @@ namespace TerrariaRPC.Core
         {
           Category = EntityCategory.Boss,
           Name = state.ActiveBossName,
-          DisplayText = state.ActiveBossText,
+          DisplayText = ResolveBossText(state, config),
           IconUrl = iconManager.GetBossIconUrl(state.ActiveBossName)
         };
       }
@@ -53,7 +88,7 @@ namespace TerrariaRPC.Core
         {
           Category = EntityCategory.Event,
           Name = state.ActiveEventName,
-          DisplayText = state.ActiveEventText,
+          DisplayText = ResolveProgressiveEventText(state, config),
           IconUrl = iconManager.GetEventIconUrl(state.ActiveEventName)
         };
       }
@@ -65,7 +100,7 @@ namespace TerrariaRPC.Core
         {
           Category = EntityCategory.NonProgressiveEvent,
           Name = state.ActiveNonProgressiveEventName,
-          DisplayText = state.ActiveNonProgressiveEventName,
+          DisplayText = ResolveNonProgressiveEventText(state, config),
           IconUrl = iconManager.GetEventIconUrl(state.ActiveNonProgressiveEventName)
         };
       }
@@ -77,7 +112,7 @@ namespace TerrariaRPC.Core
         {
           Category = EntityCategory.PeacefulEvent,
           Name = state.ActivePeacefulEventName,
-          DisplayText = state.ActivePeacefulEventName,
+          DisplayText = ResolvePeacefulEventText(state, config),
           IconUrl = iconManager.GetPeacefulIconUrl(state.ActivePeacefulEventName)
         };
       }
@@ -89,7 +124,7 @@ namespace TerrariaRPC.Core
         {
           Category = EntityCategory.Weather,
           Name = state.ActiveWeatherName,
-          DisplayText = state.ActiveWeatherName,
+          DisplayText = ResolveWeatherText(state, config),
           IconUrl = iconManager.GetWeatherIconUrl(state.ActiveWeatherName)
         };
       }
@@ -135,28 +170,28 @@ namespace TerrariaRPC.Core
         if (config.IncludeEvents && !config.ExcludeEvents && state.HasActiveEvent && primary.Category != EntityCategory.Event)
         {
           string icon = iconManager.GetEventIconUrl(state.ActiveEventName);
-          slots.Add((icon, state.ActiveEventText));
+          slots.Add((icon, ResolveProgressiveEventText(state, config)));
         }
 
         // 2. Non-progressive events include
         if (config.IncludeNonProgressiveEvents && !config.ExcludeNonProgressiveEvents && state.HasActiveNonProgressiveEvent && primary.Category != EntityCategory.NonProgressiveEvent)
         {
           string icon = iconManager.GetEventIconUrl(state.ActiveNonProgressiveEventName);
-          slots.Add((icon, state.ActiveNonProgressiveEventName));
+          slots.Add((icon, ResolveNonProgressiveEventText(state, config)));
         }
 
         // 3. Peaceful events include
         if (config.IncludePeacefulEvents && !config.ExcludePeacefulEvents && state.HasActivePeacefulEvent && primary.Category != EntityCategory.PeacefulEvent)
         {
           string icon = iconManager.GetPeacefulIconUrl(state.ActivePeacefulEventName);
-          slots.Add((icon, state.ActivePeacefulEventName));
+          slots.Add((icon, ResolvePeacefulEventText(state, config)));
         }
 
         // 4. Weather include
         if (config.IncludeWeather && !config.ExcludeWeather && state.HasActiveWeather && primary.Category != EntityCategory.Weather)
         {
           string icon = iconManager.GetWeatherIconUrl(state.ActiveWeatherName);
-          slots.Add((icon, state.ActiveWeatherName));
+          slots.Add((icon, ResolveWeatherText(state, config)));
         }
       }
 
