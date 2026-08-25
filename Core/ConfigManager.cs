@@ -6,6 +6,9 @@ namespace TerrariaRPC.Core
 {
     public class RpcConfig
     {
+        public const string LegacyProgressiveEventSmallTextTemplate = "Clearing: {{ActiveProgressiveEvent}} ({{ActiveEventHasWaves ? \"Wave {{ActiveEventWaveNum}}: \" : \"\"}}{{ActiveEventHasProgress && !ActiveEventIsAtMaxWave ? \"{{ActiveEventProgression}}%\" : \"\"}}{{ActiveEventIsAtMaxWave && ActiveEventIsAtMaxProgression ? \"{{ActiveEventPoints}} pts\" : \"\"}})";
+        public const string LegacyNonProgressiveEventSmallTextTemplate = "{{ActiveNonProgressiveEvent == \"Blood Moon\" ? \"The Blood Moon is rising...\" : ActiveNonProgressiveEvent == \"Solar Eclipse\" ? \"A Solar Eclipse is happening!\" : ActiveNonProgressiveEvent}}";
+
         public string Line1 { get; set; } = "{{WorldName}} - In {{Biome}}";
         public string Line2 { get; set; } = "ATK: {{PlayerAtk}} | DEF: {{PlayerDef}} | HP: {{PlayerHp}}/{{PlayerMaxHp}} | MP: {{PlayerMp}}/{{PlayerMaxMp}}";
 
@@ -38,8 +41,8 @@ namespace TerrariaRPC.Core
 
         // Small details templates
         public string BossSmallTextTemplate { get; set; } = "Fighting: {{ActiveBoss}} ({{ActiveBossHasShield ? \"{{ActiveBossSp}}/{{ActiveBossMaxSp}}\" : \"{{ActiveBossHp}}/{{ActiveBossMaxHp}}\"}})";
-        public string ProgressiveEventSmallTextTemplate { get; set; } = "Clearing: {{ActiveProgressiveEvent}} ({{ActiveEventHasWaves ? \"Wave {{ActiveEventWaveNum}}: \" : \"\"}}{{ActiveEventHasProgress && !ActiveEventIsAtMaxWave ? \"{{ActiveEventProgression}}%\" : \"\"}}{{ActiveEventIsAtMaxWave && ActiveEventIsAtMaxProgression ? \"{{ActiveEventPoints}} pts\" : \"\"}})";
-        public string NonProgressiveEventSmallTextTemplate { get; set; } = "{{ActiveNonProgressiveEvent == \"Blood Moon\" ? \"The Blood Moon is rising...\" : ActiveNonProgressiveEvent == \"Solar Eclipse\" ? \"A Solar Eclipse is happening!\" : ActiveNonProgressiveEvent}}";
+        public string ProgressiveEventSmallTextTemplate { get; set; } = "Clearing: {{ActiveProgressiveEvent}}{{ActiveEventDetailText != \"\" ? \" (\" + ActiveEventDetailText + \")\" : \"\"}}";
+        public string NonProgressiveEventSmallTextTemplate { get; set; } = "{{ActiveNonProgressiveEvent == \"Blood Moon\" ? \"The Blood Moon is rising...\" : ActiveNonProgressiveEvent == \"Solar Eclipse\" ? \"A Solar Eclipse is happening!\" : \"Clearing: {{ActiveNonProgressiveEvent}}\"}}";
         public string PeacefulEventSmallTextTemplate { get; set; } = "{{ActivePeacefulEvent}} is occuring.";
         public string WeatherSmallTextTemplate { get; set; } = "{{ActiveWeather}}";
 
@@ -60,6 +63,7 @@ namespace TerrariaRPC.Core
                 {
                     var json = File.ReadAllText(ConfigPath);
                     CurrentConfig = JsonSerializer.Deserialize<RpcConfig>(json) ?? new RpcConfig();
+                    MigrateConfig(CurrentConfig);
                     Console.WriteLine("Config loaded successfully.");
                 }
                 catch (Exception ex)
@@ -72,6 +76,23 @@ namespace TerrariaRPC.Core
             {
                 Console.WriteLine("Config not found. Creating default config.json.");
                 CurrentConfig = new RpcConfig();
+                SaveConfig();
+            }
+        }
+
+        private static void MigrateConfig(RpcConfig config)
+        {
+            if (string.IsNullOrWhiteSpace(config.ProgressiveEventSmallTextTemplate) ||
+                string.Equals(config.ProgressiveEventSmallTextTemplate, RpcConfig.LegacyProgressiveEventSmallTextTemplate, StringComparison.Ordinal))
+            {
+                config.ProgressiveEventSmallTextTemplate = "Clearing: {{ActiveProgressiveEvent}}{{ActiveEventDetailText != \"\" ? \" (\" + ActiveEventDetailText + \")\" : \"\"}}";
+                SaveConfig();
+            }
+
+            if (string.IsNullOrWhiteSpace(config.NonProgressiveEventSmallTextTemplate) ||
+                string.Equals(config.NonProgressiveEventSmallTextTemplate, RpcConfig.LegacyNonProgressiveEventSmallTextTemplate, StringComparison.Ordinal))
+            {
+                config.NonProgressiveEventSmallTextTemplate = "{{ActiveNonProgressiveEvent == \"Blood Moon\" ? \"The Blood Moon is rising...\" : ActiveNonProgressiveEvent == \"Solar Eclipse\" ? \"A Solar Eclipse is happening!\" : \"Clearing: {{ActiveNonProgressiveEvent}}\"}}";
                 SaveConfig();
             }
         }

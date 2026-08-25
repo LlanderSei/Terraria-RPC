@@ -405,6 +405,8 @@ namespace TerrariaRPC.Core
         { "Frost Moon", "https://terraria.wiki.gg/images/Frost_Moon_Icon.png" },
         { "Slime Rain", "https://terraria.wiki.gg/images/Bestiary_Slime_Rain.png" },
         { "Old One's Army", "https://terraria.wiki.gg/images/Old_One%27s_Army_Icon.png" },
+        { "The Torch God", "https://terraria.wiki.gg/images/Torch_God%27s_Favor.png" },
+        { "Lunar Event", "https://files.catbox.moe/djvelz.png" },
         { "Celestial Pillars", "https://files.catbox.moe/djvelz.png" } // Custom Icon
       },
       PeacefulIcons = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)

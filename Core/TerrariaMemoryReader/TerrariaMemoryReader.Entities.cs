@@ -9,6 +9,30 @@ namespace TerrariaRPC.Core
   {
     private void ScanBossesAndEvents(ClrRuntime runtime, ClrAppDomain appDomain, ClrType mainType)
     {
+      static bool TryReadVector2Center(ClrObject obj, string fieldName, out float centerX, out float centerY)
+      {
+        centerX = 0f;
+        centerY = 0f;
+
+        var valueField = obj.Type?.Fields.FirstOrDefault(f => f.Name == fieldName);
+        var valueType = valueField?.Type;
+        if (valueField == null || valueType == null) return false;
+
+        var xField = valueType.Fields.FirstOrDefault(f => f.Name == "X");
+        var yField = valueType.Fields.FirstOrDefault(f => f.Name == "Y");
+        if (xField == null || yField == null) return false;
+
+        ulong address = (ulong)((long)obj.Address + valueField.Offset + IntPtr.Size);
+        float x = xField.Read<float>(address, interior: true);
+        float y = yField.Read<float>(address, interior: true);
+        int width = obj.ReadField<int>("width");
+        int height = obj.ReadField<int>("height");
+
+        centerX = x + width * 0.5f;
+        centerY = y + height * 0.5f;
+        return true;
+      }
+
       // Reset active entity states before scanning
       CurrentState.ActiveBossName = "";
       CurrentState.ActiveBossHp = 0;
@@ -27,9 +51,11 @@ namespace TerrariaRPC.Core
       CurrentState.ActiveEventPoints = 0;
 
       CurrentState.ActiveNonProgressiveEventName = "";
+      CurrentState.ActiveNonProgressiveEventValue = "";
       CurrentState.ActivePeacefulEventName = "";
       CurrentState.ActivePeacefulEventValue = "";
       CurrentState.ActiveWeatherName = "";
+      bool lunarEventActive = false;
 
       if (CurrentState.GameMenu || (CurrentState.Screen != GameScreen.InGameSinglePlayer && CurrentState.Screen != GameScreen.InGameMultiplayer)) return;
 
@@ -63,9 +89,18 @@ namespace TerrariaRPC.Core
               int golemLife = 0, golemLifeMax = 0, golemCount = 0;
               // Moon Lord tracking: combine the core, hands, and head.
               int moonLordLife = 0, moonLordLifeMax = 0, moonLordCount = 0;
-              // Pillar tracking: combine all pillars into one Celestial Pillars total.
-              int pillarLife = 0, pillarLifeMax = 0, pillarShield = 0, pillarShieldMax = 0, pillarCount = 0;
-
+              float playerCenterX = CurrentState.PlayerHasPosition ? CurrentState.PlayerCenterX : 0f;
+              float playerCenterY = CurrentState.PlayerHasPosition ? CurrentState.PlayerCenterY : 0f;
+              bool hasPlayerCenter = CurrentState.PlayerHasPosition;
+              const float pillarPriorityRangePx = 1600f;
+              float pillarPriorityRangeSq = pillarPriorityRangePx * pillarPriorityRangePx;
+              string nearestPillarName = "";
+              int nearestPillarHp = 0;
+              int nearestPillarMaxHp = 0;
+              bool nearestPillarHasShield = false;
+              int nearestPillarShield = 0;
+              int nearestPillarMaxShield = 0;
+              float nearestPillarDistanceSq = float.MaxValue;
               for (int i = 0; i < len; i++)
               {
                 var npcObj = npcArrayObj.AsArray().GetObjectValue(i);
@@ -151,13 +186,25 @@ namespace TerrariaRPC.Core
 
                   if (isPillar)
                   {
-                    int shield = GetPillarShield(mainType, appDomain, type);
-                    int maxShield = GetPillarMaxShield(mainType, appDomain);
-                    pillarLife += life;
-                    pillarLifeMax += lifeMax;
-                    pillarShield += shield;
-                    pillarShieldMax += maxShield > 0 ? maxShield : shield;
-                    pillarCount++;
+                    lunarEventActive = true;
+                    if (hasPlayerCenter && TryReadVector2Center(npcObj, "position", out float pillarCenterX, out float pillarCenterY))
+                    {
+                      float dx = pillarCenterX - playerCenterX;
+                      float dy = pillarCenterY - playerCenterY;
+                      float distanceSq = dx * dx + dy * dy;
+                      if (distanceSq < nearestPillarDistanceSq)
+                      {
+                        int shield = GetPillarShield(mainType, appDomain, type);
+                        int maxShield = GetPillarMaxShield(mainType, appDomain);
+                        nearestPillarDistanceSq = distanceSq;
+                        nearestPillarName = typeName;
+                        nearestPillarHasShield = shield > 0;
+                        nearestPillarShield = shield;
+                        nearestPillarMaxShield = maxShield > 0 ? maxShield : shield;
+                        nearestPillarHp = life;
+                        nearestPillarMaxHp = lifeMax;
+                      }
+                    }
                     continue;
                   }
 
@@ -273,21 +320,21 @@ namespace TerrariaRPC.Core
                 _lastMoonLordMaxHp = 0;
               }
 
-              if (pillarCount > 0)
+              if (!string.IsNullOrEmpty(nearestPillarName) && nearestPillarDistanceSq <= pillarPriorityRangeSq)
               {
-                bestBossName = "Celestial Pillars";
-                if (pillarShield > 0)
+                bestBossName = nearestPillarName;
+                if (nearestPillarHasShield)
                 {
-                  bestBossHp = pillarShield;
-                  bestBossMaxHp = pillarShieldMax > 0 ? pillarShieldMax : pillarShield;
+                  bestBossHp = nearestPillarShield;
+                  bestBossMaxHp = nearestPillarMaxShield;
                   CurrentState.ActiveBossHasShield = true;
-                  CurrentState.ActiveBossSp = pillarShield;
-                  CurrentState.ActiveBossMaxSp = pillarShieldMax > 0 ? pillarShieldMax : pillarShield;
+                  CurrentState.ActiveBossSp = nearestPillarShield;
+                  CurrentState.ActiveBossMaxSp = nearestPillarMaxShield;
                 }
                 else
                 {
-                  bestBossHp = pillarLife;
-                  bestBossMaxHp = pillarLifeMax;
+                  bestBossHp = nearestPillarHp;
+                  bestBossMaxHp = nearestPillarMaxHp;
                   CurrentState.ActiveBossHasShield = false;
                   CurrentState.ActiveBossSp = 0;
                   CurrentState.ActiveBossMaxSp = 0;
@@ -309,7 +356,7 @@ namespace TerrariaRPC.Core
           }
         }
 
-        // 2. Progressive Events (Invasion, Slime Rain, Pumpkin/Frost Moon, Old One's Army)
+        // 2. Progressive Events (Invasion, Pumpkin/Frost Moon, Old One's Army)
         int invasionType = mainType.StaticFields.FirstOrDefault(f => f.Name == "invasionType")?.Read<int>(appDomain) ?? 0;
         int invasionProgress = mainType.StaticFields.FirstOrDefault(f => f.Name == "invasionProgress")?.Read<int>(appDomain) ?? 0;
         int invasionProgressMax = mainType.StaticFields.FirstOrDefault(f => f.Name == "invasionProgressMax")?.Read<int>(appDomain) ?? 0;
@@ -446,14 +493,36 @@ namespace TerrariaRPC.Core
           }
         }
 
-        // 3. Non-Progressive Events (Blood Moon, Solar Eclipse)
-        if (mainType.StaticFields.FirstOrDefault(f => f.Name == "bloodMoon")?.Read<bool>(appDomain) ?? false)
+        // 3. Non-Progressive Events (Lunar Event, Blood Moon, Solar Eclipse, Torch God, Slime Rain)
+        bool bloodMoonActive = mainType.StaticFields.FirstOrDefault(f => f.Name == "bloodMoon")?.Read<bool>(appDomain) ?? false;
+        bool eclipseActive = mainType.StaticFields.FirstOrDefault(f => f.Name == "eclipse")?.Read<bool>(appDomain) ?? false;
+        bool slimeRainActive = mainType.StaticFields.FirstOrDefault(f => f.Name == "slimeRain")?.Read<bool>(appDomain) ?? false;
+        bool torchGodActive = CurrentState.TorchGodActive;
+
+        if (lunarEventActive)
+        {
+          CurrentState.ActiveNonProgressiveEventName = "Lunar Event";
+          CurrentState.ActiveNonProgressiveEventValue = "LunarEvent";
+        }
+        else if (bloodMoonActive)
         {
           CurrentState.ActiveNonProgressiveEventName = "Blood Moon";
+          CurrentState.ActiveNonProgressiveEventValue = "BloodMoon";
         }
-        else if (mainType.StaticFields.FirstOrDefault(f => f.Name == "eclipse")?.Read<bool>(appDomain) ?? false)
+        else if (eclipseActive)
         {
           CurrentState.ActiveNonProgressiveEventName = "Solar Eclipse";
+          CurrentState.ActiveNonProgressiveEventValue = "SolarEclipse";
+        }
+        else if (torchGodActive)
+        {
+          CurrentState.ActiveNonProgressiveEventName = "The Torch God";
+          CurrentState.ActiveNonProgressiveEventValue = "TorchGod";
+        }
+        else if (slimeRainActive)
+        {
+          CurrentState.ActiveNonProgressiveEventName = "Slime Rain";
+          CurrentState.ActiveNonProgressiveEventValue = "SlimeRain";
         }
 
         // 4. Peaceful Events (Party, Lantern Night)

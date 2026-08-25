@@ -44,7 +44,7 @@ namespace TerrariaRPC.Core
     private static string ResolveNonProgressiveEventText(TerrariaGameState state, RpcConfig config)
     {
       return string.IsNullOrWhiteSpace(config.NonProgressiveEventSmallTextTemplate)
-        ? state.ActiveNonProgressiveEventName
+        ? state.ActiveNonProgressiveEventText
         : PresenceTemplateEngine.Format(config.NonProgressiveEventSmallTextTemplate, state);
     }
 

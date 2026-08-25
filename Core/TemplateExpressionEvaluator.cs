@@ -67,12 +67,22 @@ namespace TerrariaRPC.Core
         ["ActiveEventWaveNum"] = state.ActiveEventWaveNum > 0 ? state.ActiveEventWaveNum : null,
         ["ActiveEventHasWaves"] = state.ActiveEventHasWaves,
         ["ActiveEventHasProgress"] = state.ActiveEventHasProgress,
+        ["ActiveEventHasProgression"] = state.ActiveEventHasProgression,
         ["ActiveEventIsAtMaxWave"] = state.ActiveEventIsAtMaxWave,
         ["ActiveEventIsAtMaxProgression"] = state.ActiveEventIsAtMaxProgression,
         ["ActiveEventProgression"] = state.ActiveEventProgression,
         ["ActiveEventPoints"] = state.ActiveEventPoints,
+        ["ActiveEventIsOoa"] = state.ActiveEventIsOoa,
+        ["ActiveEventUsesPoints"] = state.ActiveEventUsesPoints,
+        ["ActiveProgressUsesPts"] = state.ActiveProgressUsesPts,
+        ["ActiveProgressIsAtMaxWave"] = state.ActiveProgressIsAtMaxWave,
+        ["ActiveEventWaveText"] = state.ActiveEventWaveText,
+        ["ActiveEventProgressText"] = state.ActiveEventProgressText,
+        ["ActiveEventDetailText"] = state.ActiveEventDetailText,
+        ["TorchGodActive"] = state.TorchGodActive,
         ["ActiveNonProgressiveEvent"] = state.ActiveNonProgressiveEventName,
-        ["ActiveNonProgressiveEventValue"] = state.ActiveNonProgressiveEventName,
+        ["ActiveNonProgressiveEventValue"] = state.ActiveNonProgressiveEventValue,
+        ["ActiveNonProgressiveEventText"] = state.ActiveNonProgressiveEventText,
         ["ActivePeacefulEvent"] = state.ActivePeacefulEventName,
         ["ActivePeacefulEventValue"] = state.ActivePeacefulEventValue,
         ["ActiveWeather"] = state.ActiveWeatherName,
@@ -81,7 +91,7 @@ namespace TerrariaRPC.Core
           : state.HasActiveEvent
             ? state.ActiveEventText
             : state.HasActiveNonProgressiveEvent
-              ? state.ActiveNonProgressiveEventName
+              ? state.ActiveNonProgressiveEventText
               : state.HasActivePeacefulEvent
                 ? $"{state.ActivePeacefulEventName} is occuring."
                 : state.HasActiveWeather

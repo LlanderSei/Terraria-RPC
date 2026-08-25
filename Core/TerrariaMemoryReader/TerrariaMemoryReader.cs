@@ -63,6 +63,9 @@ namespace TerrariaRPC.Core
     public int PlayerDef { get; set; } = 0;
     public string PlayerItemHeld { get; set; } = "";
     public string PlayerItemPrefix { get; set; } = "";
+    public bool PlayerHasPosition { get; set; } = false;
+    public float PlayerCenterX { get; set; } = 0f;
+    public float PlayerCenterY { get; set; } = 0f;
 
     // World Stats
     public string WorldSeed { get; set; } = "";
@@ -111,10 +114,37 @@ namespace TerrariaRPC.Core
     public int ActiveEventWaveNum { get; set; } = -1; // -1 if no wave number
     public bool ActiveEventHasWaves => ActiveEventWaveNum > 0;
     public bool ActiveEventHasProgress { get; set; } = false;
+    public bool ActiveEventHasProgression => ActiveEventHasProgress;
     public bool ActiveEventIsAtMaxWave { get; set; } = false;
     public bool ActiveEventIsAtMaxProgression { get; set; } = false;
     public int ActiveEventProgression { get; set; } = -1;
     public int ActiveEventPoints { get; set; } = 0;
+    public bool ActiveEventIsOoa => string.Equals(ActiveEventName, "Old One's Army", StringComparison.OrdinalIgnoreCase);
+    public bool ActiveEventUsesPoints => HasActiveEvent &&
+      !ActiveEventIsOoa &&
+      (string.Equals(ActiveEventName, "Pumpkin Moon", StringComparison.OrdinalIgnoreCase) ||
+       string.Equals(ActiveEventName, "Frost Moon", StringComparison.OrdinalIgnoreCase)) &&
+      ActiveEventIsAtMaxWave &&
+      ActiveEventIsAtMaxProgression;
+    public bool ActiveProgressUsesPts => ActiveEventUsesPoints;
+    public bool ActiveProgressIsAtMaxWave => ActiveEventIsAtMaxWave;
+    public bool TorchGodActive { get; set; } = false;
+    public string ActiveEventWaveText => ActiveEventWaveNum > 0 ? $"Wave {ActiveEventWaveNum}: " : "";
+    public string ActiveEventProgressText
+    {
+      get
+      {
+        if (!HasActiveEvent) return "";
+        if (ActiveEventUsesPoints && ActiveEventPoints > 0)
+          return $"{ActiveEventPoints} pts";
+        if (ActiveEventHasProgress && ActiveEventProgression >= 0)
+          return $"{ActiveEventProgression}%";
+        if (ActiveEventProgress >= 0)
+          return $"{ActiveEventProgress}%";
+        return "";
+      }
+    }
+    public string ActiveEventDetailText => $"{ActiveEventWaveText}{ActiveEventProgressText}";
 
     public string ActiveEventText
     {
@@ -124,13 +154,14 @@ namespace TerrariaRPC.Core
 
         bool hasWave = ActiveEventWaveNum > 0;
         bool hasPct = ActiveEventProgress >= 0;
+        bool hasProgressText = !string.IsNullOrEmpty(ActiveEventProgressText);
 
-        if (hasWave && hasPct)
-          return $"Clearing: {ActiveEventName} (Wave {ActiveEventWaveNum}: {ActiveEventProgress}%)";
+        if (hasWave && hasProgressText)
+          return $"Clearing: {ActiveEventName} ({ActiveEventDetailText})";
         if (hasWave)
           return $"Clearing: {ActiveEventName} (Wave {ActiveEventWaveNum})";
         if (hasPct)
-          return $"Clearing: {ActiveEventName} ({ActiveEventProgress}%)";
+          return $"Clearing: {ActiveEventName} ({ActiveEventProgressText})";
 
         return $"Clearing: {ActiveEventName}";
       }
@@ -139,6 +170,20 @@ namespace TerrariaRPC.Core
     // -- Non-Progressive Event Info -----------------------------------------
     public bool HasActiveNonProgressiveEvent => !string.IsNullOrEmpty(ActiveNonProgressiveEventName);
     public string ActiveNonProgressiveEventName { get; set; } = ""; // e.g. "Blood Moon", "Solar Eclipse"
+    public string ActiveNonProgressiveEventValue { get; set; } = ""; // e.g. "BloodMoon", "SolarEclipse", "LunarEvent", "TorchGod", "SlimeRain"
+    public string ActiveNonProgressiveEventText
+    {
+      get
+      {
+        if (!HasActiveNonProgressiveEvent) return "";
+        return ActiveNonProgressiveEventName switch
+        {
+          "Blood Moon" => "The Blood Moon is rising...",
+          "Solar Eclipse" => "A Solar Eclipse is happening!",
+          _ => $"Clearing: {ActiveNonProgressiveEventName}"
+        };
+      }
+    }
 
     // -- Peaceful Event Info ------------------------------------------------
     public bool HasActivePeacefulEvent => !string.IsNullOrEmpty(ActivePeacefulEventName);
@@ -173,6 +218,9 @@ namespace TerrariaRPC.Core
         PlayerDef = PlayerDef,
         PlayerItemHeld = PlayerItemHeld,
         PlayerItemPrefix = PlayerItemPrefix,
+        PlayerHasPosition = PlayerHasPosition,
+        PlayerCenterX = PlayerCenterX,
+        PlayerCenterY = PlayerCenterY,
         WorldSeed = WorldSeed,
         WorldSize = WorldSize,
         WorldEvil = WorldEvil,
@@ -196,7 +244,9 @@ namespace TerrariaRPC.Core
         ActiveEventIsAtMaxProgression = ActiveEventIsAtMaxProgression,
         ActiveEventProgression = ActiveEventProgression,
         ActiveEventPoints = ActiveEventPoints,
+        TorchGodActive = TorchGodActive,
         ActiveNonProgressiveEventName = ActiveNonProgressiveEventName,
+        ActiveNonProgressiveEventValue = ActiveNonProgressiveEventValue,
         ActivePeacefulEventName = ActivePeacefulEventName,
         ActivePeacefulEventValue = ActivePeacefulEventValue,
         ActiveWeatherName = ActiveWeatherName
