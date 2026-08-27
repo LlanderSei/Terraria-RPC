@@ -24,6 +24,14 @@ namespace TerrariaRPC
 
       ConfigManager.LoadConfig();
 
+      bool debugLogsEnabled = args.Any(a => a.Equals("--debug-logs", StringComparison.OrdinalIgnoreCase))
+        || Environment.GetEnvironmentVariable("TERRARIARPC_DEBUG_LOGS") == "1";
+      Logger.SetDebugEnabled(debugLogsEnabled);
+      if (debugLogsEnabled)
+      {
+        Logger.Info("Debug logging enabled.");
+      }
+
       bool noGui = args.Any(a => a.Equals("--no-gui", StringComparison.OrdinalIgnoreCase))
         || Environment.GetEnvironmentVariable("TERRARIARPC_HEADLESS") == "1";
 

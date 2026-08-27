@@ -29,6 +29,16 @@ namespace TerrariaRPC.Core
     {
       return new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
       {
+        // Session / screen
+        ["IsAttached"] = state.IsAttached,
+        ["RawMenuMode"] = state.RawMenuMode,
+        ["NetMode"] = state.NetMode,
+        ["GameMenu"] = state.GameMenu,
+        ["Screen"] = state.Screen.ToString(),
+        ["ScreenName"] = state.Screen.ToString(),
+        ["IsInGame"] = state.Screen == GameScreen.InGameSinglePlayer || state.Screen == GameScreen.InGameMultiplayer,
+        ["IsMainMenu"] = state.Screen == GameScreen.MainMenu,
+
         // World
         ["WorldName"] = state.WorldName,
         ["Biome"] = state.Biome,

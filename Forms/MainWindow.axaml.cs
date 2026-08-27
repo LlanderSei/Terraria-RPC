@@ -1,16 +1,31 @@
+using Avalonia;
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Interactivity;
-using Avalonia.Threading;
+using Avalonia.Input;
+using Avalonia.Media;
 using TerrariaRPC.Core;
 
 namespace TerrariaRPC.Forms;
 
 public partial class MainWindow : Window
 {
+  private enum ConfigPane
+  {
+    MainMenu,
+    InGame
+  }
+
   private bool _isUpdatingCheckboxes = false;
+  private bool _isUpdatingPaneState = false;
+  private ConfigPane _activePane = ConfigPane.MainMenu;
+  private bool _isAppShutdownRequested = false;
+  private TextBox? _expandedMainMenuField;
 
   public MainWindow()
   {
@@ -25,8 +40,17 @@ public partial class MainWindow : Window
     {
       _isUpdatingCheckboxes = true;
 
-      this.FindControl<TextBox>("Line1Box")!.Text = config.Line1;
-      this.FindControl<TextBox>("Line2Box")!.Text = config.Line2;
+      this.FindControl<TextBox>("MainMenuLine1Box")!.Text = config.MainMenuLine1;
+      this.FindControl<TextBox>("MainMenuLine2Box")!.Text = config.MainMenuLine2;
+      this.FindControl<TextBox>("MainMenuSmallImageUrlBox")!.Text = config.MainMenuSmallImageUrl;
+      this.FindControl<TextBox>("MainMenuSmallImageTextBox")!.Text = config.MainMenuSmallImageText;
+      this.FindControl<TextBox>("MainMenuLargeImageUrlBox")!.Text = config.MainMenuLargeImageUrl;
+      this.FindControl<TextBox>("MainMenuLargeImageTextBox")!.Text = config.MainMenuLargeImageText;
+
+      var inGameLine1Box = this.FindControl<TextBox>("Line1Box");
+      var inGameLine2Box = this.FindControl<TextBox>("Line2Box");
+      if (inGameLine1Box != null) inGameLine1Box.Text = config.InGameLine1;
+      if (inGameLine2Box != null) inGameLine2Box.Text = config.InGameLine2;
 
       this.FindControl<ComboBox>("SmallImageStyleBox")!.SelectedIndex = config.SmallImageStyleIndex;
       this.FindControl<TextBox>("SmallImageCustomUrlBox")!.Text = config.SmallImageCustomUrl;
@@ -56,8 +80,61 @@ public partial class MainWindow : Window
       this.FindControl<TextBox>("ClientIdBox")!.Text = config.ClientId;
 
       _isUpdatingCheckboxes = false;
+      SetActivePane(ConfigPane.MainMenu);
       UpdateVisibility();
     }
+  }
+
+  private void SetActivePane(ConfigPane pane)
+  {
+    if (_isUpdatingPaneState) return;
+    _activePane = pane;
+
+    var mainMenuPanel = this.FindControl<Panel>("MainMenuPanel");
+    var inGamePanel = this.FindControl<Panel>("InGamePanel");
+    if (mainMenuPanel != null) mainMenuPanel.IsVisible = pane == ConfigPane.MainMenu;
+    if (inGamePanel != null) inGamePanel.IsVisible = pane == ConfigPane.InGame;
+
+    var mainMenuButton = this.FindControl<Button>("MainMenuPaneButton");
+    var inGameButton = this.FindControl<Button>("InGamePaneButton");
+
+    ApplyPaneButtonState(mainMenuButton, pane == ConfigPane.MainMenu);
+    ApplyPaneButtonState(inGameButton, pane == ConfigPane.InGame);
+  }
+
+  private static Color GetThemeAccentColor()
+  {
+    if (OperatingSystem.IsWindows())
+    {
+      try
+      {
+        DwmGetColorizationColor(out uint colorizationColor, out _);
+        byte a = (byte)((colorizationColor >> 24) & 0xFF);
+        byte r = (byte)((colorizationColor >> 16) & 0xFF);
+        byte g = (byte)((colorizationColor >> 8) & 0xFF);
+        byte b = (byte)(colorizationColor & 0xFF);
+        return Color.FromArgb(a, r, g, b);
+      }
+      catch
+      {
+      }
+    }
+
+    return Color.FromRgb(0x38, 0x8f, 0xff);
+  }
+
+  [DllImport("dwmapi.dll")]
+  private static extern int DwmGetColorizationColor(out uint pcrColorization, out bool pfOpaqueBlend);
+
+  private static void ApplyPaneButtonState(Button? button, bool selected)
+  {
+    if (button == null) return;
+
+    var accent = new SolidColorBrush(GetThemeAccentColor());
+    button.Background = selected ? accent : Brushes.Transparent;
+    button.BorderBrush = selected ? accent : new SolidColorBrush(Color.FromArgb(0x70, 0x80, 0x80, 0x80));
+    button.Foreground = selected ? Brushes.White : Brushes.White;
+    button.FontWeight = selected ? FontWeight.SemiBold : FontWeight.Normal;
   }
 
   private void UpdateVisibility()
@@ -108,6 +185,59 @@ public partial class MainWindow : Window
   public void OnLargeImageStyleChanged(object sender, SelectionChangedEventArgs e)
   {
     UpdateVisibility();
+  }
+
+  public void OnMainMenuPaneClick(object sender, RoutedEventArgs e)
+  {
+    if (_isUpdatingPaneState) return;
+    SetActivePane(ConfigPane.MainMenu);
+  }
+
+  public void OnInGamePaneClick(object sender, RoutedEventArgs e)
+  {
+    if (_isUpdatingPaneState) return;
+    SetActivePane(ConfigPane.InGame);
+  }
+
+  public void OnMainMenuFieldGotFocus(object sender, RoutedEventArgs e)
+  {
+    if (sender is TextBox field)
+    {
+      ExpandMainMenuField(field);
+    }
+  }
+
+  public void OnMainMenuFieldLostFocus(object sender, RoutedEventArgs e)
+  {
+    if (sender is TextBox field)
+    {
+      CollapseMainMenuField(field);
+    }
+  }
+
+  private void ExpandMainMenuField(TextBox field)
+  {
+    if (_expandedMainMenuField != null && _expandedMainMenuField != field)
+    {
+      CollapseMainMenuField(_expandedMainMenuField);
+    }
+
+    _expandedMainMenuField = field;
+    field.TextWrapping = TextWrapping.Wrap;
+    field.MinHeight = 72;
+    field.Height = double.NaN;
+  }
+
+  private void CollapseMainMenuField(TextBox field)
+  {
+    field.TextWrapping = TextWrapping.NoWrap;
+    field.MinHeight = 32;
+    field.Height = double.NaN;
+
+    if (_expandedMainMenuField == field)
+    {
+      _expandedMainMenuField = null;
+    }
   }
 
   public void OnBossEventCheckChanged(object sender, RoutedEventArgs e)
@@ -234,8 +364,15 @@ public partial class MainWindow : Window
 
     var config = ConfigManager.CurrentConfig ?? new RpcConfig();
 
-    config.Line1 = this.FindControl<TextBox>("Line1Box")!.Text ?? "";
-    config.Line2 = this.FindControl<TextBox>("Line2Box")!.Text ?? "";
+    config.MainMenuLine1 = this.FindControl<TextBox>("MainMenuLine1Box")!.Text ?? "";
+    config.MainMenuLine2 = this.FindControl<TextBox>("MainMenuLine2Box")!.Text ?? "";
+    config.MainMenuSmallImageUrl = this.FindControl<TextBox>("MainMenuSmallImageUrlBox")!.Text ?? "";
+    config.MainMenuSmallImageText = this.FindControl<TextBox>("MainMenuSmallImageTextBox")!.Text ?? "";
+    config.MainMenuLargeImageUrl = this.FindControl<TextBox>("MainMenuLargeImageUrlBox")!.Text ?? "";
+    config.MainMenuLargeImageText = this.FindControl<TextBox>("MainMenuLargeImageTextBox")!.Text ?? "";
+
+    config.InGameLine1 = this.FindControl<TextBox>("Line1Box")!.Text ?? "";
+    config.InGameLine2 = this.FindControl<TextBox>("Line2Box")!.Text ?? "";
 
     config.SmallImageStyleIndex = this.FindControl<ComboBox>("SmallImageStyleBox")!.SelectedIndex;
     config.SmallImageCustomUrl = this.FindControl<TextBox>("SmallImageCustomUrlBox")!.Text ?? "";
@@ -281,7 +418,13 @@ public partial class MainWindow : Window
 
   protected override void OnClosing(WindowClosingEventArgs e)
   {
-    bool terrariaRunning = Process.GetProcessesByName("Terraria").Any();
+    if (_isAppShutdownRequested)
+    {
+      base.OnClosing(e);
+      return;
+    }
+
+    bool terrariaRunning = IsTerrariaRunning();
     if (terrariaRunning)
     {
       e.Cancel = true;
@@ -292,13 +435,53 @@ public partial class MainWindow : Window
     {
       Logger.Info("Window closing — Terraria not running, exiting.");
       SingleInstance.Release();
-      base.OnClosing(e);
+      _isAppShutdownRequested = true;
+      e.Cancel = true;
+      if (Avalonia.Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+      {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => desktop.Shutdown());
+      }
+      else
+      {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => Environment.Exit(0));
+      }
     }
+  }
+
+  private static bool IsTerrariaRunning()
+  {
+    foreach (var process in Process.GetProcessesByName("Terraria"))
+    {
+      try
+      {
+        if (process.HasExited)
+        {
+          continue;
+        }
+
+        var fileName = process.MainModule?.FileName;
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+          return true;
+        }
+
+        if (string.Equals(Path.GetFileName(fileName), "Terraria.exe", StringComparison.OrdinalIgnoreCase))
+        {
+          return true;
+        }
+      }
+      catch
+      {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   public void ShowAndBringToFront()
   {
-    Dispatcher.UIThread.Post(() =>
+    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
     {
       Show();
       WindowState = WindowState.Normal;

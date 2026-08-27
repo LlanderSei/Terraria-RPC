@@ -267,21 +267,21 @@ namespace TerrariaRPC.Core
     private bool _isMultiplayerFlow = false;
 
     // Cached MethodTable addresses for fast type lookup — populated on first successful scan.
-    private ulong _mainTypeMT          = 0;
-    private ulong _worldGenTypeMT       = 0;
-    private ulong _playerTypeMT        = 0;
-    private ulong _langTypeMT          = 0;
+    private ulong _mainTypeMT = 0;
+    private ulong _worldGenTypeMT = 0;
+    private ulong _playerTypeMT = 0;
+    private ulong _langTypeMT = 0;
     private ulong _birthdayPartyTypeMT = 0;
-    private ulong _lanternNightTypeMT   = 0;
-    private ulong _sandstormTypeMT      = 0;
-    private ulong _dd2EventTypeMT       = 0;
-    private int _lastKnownOoaWave       = -1;
-    private int _lastTwinsMaxHp         = 0;
-    private int _lastEowMaxHp           = 0;
-    private int _lastBocMaxHp           = 0;
-    private int _lastPrimeMaxHp         = 0;
-    private int _lastGolemMaxHp         = 0;
-    private int _lastMoonLordMaxHp      = 0;
+    private ulong _lanternNightTypeMT = 0;
+    private ulong _sandstormTypeMT = 0;
+    private ulong _dd2EventTypeMT = 0;
+    private int _lastKnownOoaWave = -1;
+    private int _lastTwinsMaxHp = 0;
+    private int _lastEowMaxHp = 0;
+    private int _lastBocMaxHp = 0;
+    private int _lastPrimeMaxHp = 0;
+    private int _lastGolemMaxHp = 0;
+    private int _lastMoonLordMaxHp = 0;
     private string _lastAtkItemSignature = "";
     private readonly object _stateLock = new();
 
@@ -371,9 +371,9 @@ namespace TerrariaRPC.Core
           ClrAppDomain appDomain = runtime.AppDomains.First();
 
           // Find core types - use cached MethodTable for O(1) lookup on subsequent ticks.
-          ClrType? mainType     = TryGetCachedType(runtime, ref _mainTypeMT,     "Terraria.Main");
-          ClrType? worldGenType = TryGetCachedType(runtime, ref _worldGenTypeMT,  "Terraria.WorldGen");
-          ClrType? playerType   = TryGetCachedType(runtime, ref _playerTypeMT,    "Terraria.Player");
+          ClrType? mainType = TryGetCachedType(runtime, ref _mainTypeMT, "Terraria.Main");
+          ClrType? worldGenType = TryGetCachedType(runtime, ref _worldGenTypeMT, "Terraria.WorldGen");
+          ClrType? playerType = TryGetCachedType(runtime, ref _playerTypeMT, "Terraria.Player");
 
           if (mainType == null)
           {

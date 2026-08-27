@@ -152,17 +152,20 @@ namespace TerrariaRPC.Core
 
     private void PrintState()
     {
+      if (!Logger.IsDebugEnabled)
+        return;
+
       if (CurrentState.Screen == GameScreen.InGameSinglePlayer || CurrentState.Screen == GameScreen.InGameMultiplayer)
       {
         string hm = CurrentState.WorldIsHardmode ? "Hardmode" : "Pre-Hardmode";
         string special = CurrentState.WorldSpecialSeeds.Length > 0 ? string.Join(", ", CurrentState.WorldSpecialSeeds) : "None";
         string secret = CurrentState.WorldSecretSeeds.Length > 0 ? string.Join(", ", CurrentState.WorldSecretSeeds) : "None";
-        Logger.Info($"--- Game State --- InGame World:\"{CurrentState.WorldName}\" Size:{CurrentState.WorldSize} Evil:{CurrentState.WorldEvil} Diff:{CurrentState.WorldDifficulty} State:{hm}");
-        Logger.Info($"Seed:\"{CurrentState.WorldSeed}\" SpecialSeeds:[{special}] SecretSeeds:[{secret}] Biome:\"{CurrentState.Biome}\" HeldItem:\"{CurrentState.PlayerItemHeld}\"");
+        Logger.Debug($"--- Game State --- InGame World:\"{CurrentState.WorldName}\" Size:{CurrentState.WorldSize} Evil:{CurrentState.WorldEvil} Diff:{CurrentState.WorldDifficulty} State:{hm}");
+        Logger.Debug($"Seed:\"{CurrentState.WorldSeed}\" SpecialSeeds:[{special}] SecretSeeds:[{secret}] Biome:\"{CurrentState.Biome}\" HeldItem:\"{CurrentState.PlayerItemHeld}\"");
       }
       else
       {
-        Logger.Info($"Screen:{CurrentState.Screen} World:\"{CurrentState.WorldName}\" Attached:{CurrentState.IsAttached}");
+        Logger.Debug($"Screen:{CurrentState.Screen} World:\"{CurrentState.WorldName}\" Attached:{CurrentState.IsAttached}");
       }
     }
   }

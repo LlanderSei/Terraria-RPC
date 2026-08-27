@@ -14,6 +14,12 @@ namespace TerrariaRPC.Core
     );
 
     private static readonly object _lock = new();
+    public static bool IsDebugEnabled { get; private set; } = false;
+
+    public static void SetDebugEnabled(bool enabled)
+    {
+      IsDebugEnabled = enabled;
+    }
 
     static Logger()
     {
@@ -32,7 +38,11 @@ namespace TerrariaRPC.Core
     public static void Info(string message) => Write("INFO ", message);
     public static void Warn(string message) => Write("WARN ", message);
     public static void Error(string message) => Write("ERROR", message);
-    public static void Debug(string message) => Write("DEBUG", message);
+    public static void Debug(string message)
+    {
+      if (!IsDebugEnabled) return;
+      Write("DEBUG", message);
+    }
 
     private static void Write(string level, string message)
     {

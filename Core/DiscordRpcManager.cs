@@ -34,76 +34,20 @@ namespace TerrariaRPC.Core
             EnsureClient(config.ClientId);
             iconManager.UpdateWorldState(state);
 
-            string title = "";
-            string subtitle1 = "";
-
-            if (!state.IsAttached)
-            {
-                title = "Waiting for Terraria...";
-                subtitle1 = "";
-            }
-            else
-            {
-                switch (state.Screen)
-                {
-                    case GameScreen.InGameSinglePlayer:
-                    case GameScreen.InGameMultiplayer:
-                        title = PresenceTemplateEngine.Format(config.Line1, state);
-                        subtitle1 = PresenceTemplateEngine.Format(config.Line2, state);
-                        break;
-
-                    case GameScreen.MainMenu:
-                        title = "On Main Menu";
-                        subtitle1 = "";
-                        break;
-
-                    case GameScreen.PlayerSelection:
-                        title = "Single Player";
-                        subtitle1 = "Choosing a player...";
-                        break;
-
-                    case GameScreen.WorldSelection:
-                        title = "Single Player";
-                        subtitle1 = "Selecting a world...";
-                        break;
-
-                    case GameScreen.EnteringWorld:
-                        title = "Single Player";
-                        subtitle1 = $"Entering {state.WorldName}...";
-                        break;
-
-                    case GameScreen.MultiplayerBrowser:
-                        title = "Multiplayer";
-                        subtitle1 = "Selecting connection type...";
-                        break;
-
-                    case GameScreen.MultiplayerPlayerSelection:
-                        title = "Multiplayer";
-                        subtitle1 = "Choosing a player...";
-                        break;
-
-                    case GameScreen.MultiplayerIpSelection:
-                        title = "Multiplayer";
-                        subtitle1 = "Selecting an address to join...";
-                        break;
-
-                    case GameScreen.MultiplayerJoining:
-                        title = "Multiplayer";
-                        subtitle1 = "Joining world...";
-                        break;
-
-                    default:
-                        title = "In Menus";
-                        subtitle1 = "";
-                        break;
-                }
-            }
-
             bool isInGame = state.Screen == GameScreen.InGameSinglePlayer || state.Screen == GameScreen.InGameMultiplayer;
+            bool isMenuContext = !isInGame;
+
+            string title = isMenuContext
+                ? PresenceTemplateEngine.Format(config.MainMenuLine1, state)
+                : PresenceTemplateEngine.Format(config.InGameLine1, state);
+
+            string subtitle1 = isMenuContext
+                ? PresenceTemplateEngine.Format(config.MainMenuLine2, state)
+                : PresenceTemplateEngine.Format(config.InGameLine2, state);
 
             string largeIconUrl = config.LargeImageStyleIndex == 1
                 ? config.LargeImageCustomUrl
-                : (isInGame ? iconManager.GetCurrentWorldIconUrl() : "https://terraria.wiki.gg/images/Treetop_Forest_1.png");
+                : (isInGame ? iconManager.GetCurrentWorldIconUrl() : string.IsNullOrWhiteSpace(config.MainMenuLargeImageUrl) ? "https://terraria.wiki.gg/images/Treetop_Forest_1.png" : config.MainMenuLargeImageUrl);
 
             string largeImageText = "";
             if (isInGame)
@@ -144,6 +88,10 @@ namespace TerrariaRPC.Core
                     }
                 }
             }
+            else
+            {
+                largeImageText = PresenceTemplateEngine.Format(config.MainMenuLargeImageText, state);
+            }
 
             // Discord enforces a 128-char limit on image tooltip text
             if (largeImageText.Length > 128)
@@ -160,6 +108,11 @@ namespace TerrariaRPC.Core
                 var (url, text) = bossEventManager.GetSmallIconAndText(state, config, iconManager, itemIconUrl);
                 smallIconUrl = url;
                 smallImageText = text;
+            }
+            else
+            {
+                smallIconUrl = config.MainMenuSmallImageUrl;
+                smallImageText = PresenceTemplateEngine.Format(config.MainMenuSmallImageText, state);
             }
 
             if (smallImageText.Length > 128)

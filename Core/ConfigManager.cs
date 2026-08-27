@@ -9,8 +9,15 @@ namespace TerrariaRPC.Core
         public const string LegacyProgressiveEventSmallTextTemplate = "Clearing: {{ActiveProgressiveEvent}} ({{ActiveEventHasWaves ? \"Wave {{ActiveEventWaveNum}}: \" : \"\"}}{{ActiveEventHasProgress && !ActiveEventIsAtMaxWave ? \"{{ActiveEventProgression}}%\" : \"\"}}{{ActiveEventIsAtMaxWave && ActiveEventIsAtMaxProgression ? \"{{ActiveEventPoints}} pts\" : \"\"}})";
         public const string LegacyNonProgressiveEventSmallTextTemplate = "{{ActiveNonProgressiveEvent == \"Blood Moon\" ? \"The Blood Moon is rising...\" : ActiveNonProgressiveEvent == \"Solar Eclipse\" ? \"A Solar Eclipse is happening!\" : ActiveNonProgressiveEvent}}";
 
-        public string Line1 { get; set; } = "{{WorldName}} - In {{Biome}}";
-        public string Line2 { get; set; } = "ATK: {{PlayerAtk}} | DEF: {{PlayerDef}} | HP: {{PlayerHp}}/{{PlayerMaxHp}} | MP: {{PlayerMp}}/{{PlayerMaxMp}}";
+        public string MainMenuLine1 { get; set; } = "{{!IsAttached ? \"Waiting for Terraria...\" : Screen == \"MainMenu\" ? \"On Main Menu\" : Screen == \"PlayerSelection\" ? \"Single Player\" : Screen == \"WorldSelection\" ? \"Single Player\" : Screen == \"EnteringWorld\" ? \"Single Player\" : Screen == \"MultiplayerBrowser\" ? \"Multiplayer\" : Screen == \"MultiplayerPlayerSelection\" ? \"Multiplayer\" : Screen == \"MultiplayerIpSelection\" ? \"Multiplayer\" : Screen == \"MultiplayerJoining\" ? \"Multiplayer\" : \"In Menus\"}}";
+        public string MainMenuLine2 { get; set; } = "{{!IsAttached ? \"\" : Screen == \"PlayerSelection\" ? \"Choosing a player...\" : Screen == \"WorldSelection\" ? \"Selecting a world...\" : Screen == \"EnteringWorld\" ? \"Entering {{WorldName}}...\" : Screen == \"MultiplayerBrowser\" ? \"Selecting connection type...\" : Screen == \"MultiplayerPlayerSelection\" ? \"Choosing a player...\" : Screen == \"MultiplayerIpSelection\" ? \"Selecting an address to join...\" : Screen == \"MultiplayerJoining\" ? \"Joining world...\" : \"\"}}";
+        public string MainMenuSmallImageUrl { get; set; } = "";
+        public string MainMenuSmallImageText { get; set; } = "";
+        public string MainMenuLargeImageUrl { get; set; } = "https://terraria.wiki.gg/images/Treetop_Forest_1.png";
+        public string MainMenuLargeImageText { get; set; } = "";
+
+        public string InGameLine1 { get; set; } = "{{WorldName}} - In {{Biome}}";
+        public string InGameLine2 { get; set; } = "ATK: {{PlayerAtk}} | DEF: {{PlayerDef}} | HP: {{PlayerHp}}/{{PlayerMaxHp}} | MP: {{PlayerMp}}/{{PlayerMaxMp}}";
 
         // Large Image settings
         public int LargeImageStyleIndex { get; set; } = 0; // 0 = Special Seed Icon, 1 = Custom
@@ -48,6 +55,19 @@ namespace TerrariaRPC.Core
 
         // Discord settings
         public string ClientId { get; set; } = "1537768004119691335";
+
+        // Legacy aliases for migration/backward compatibility.
+        public string Line1
+        {
+            get => InGameLine1;
+            set => InGameLine1 = value;
+        }
+
+        public string Line2
+        {
+            get => InGameLine2;
+            set => InGameLine2 = value;
+        }
     }
 
     public static class ConfigManager
@@ -82,17 +102,48 @@ namespace TerrariaRPC.Core
 
         private static void MigrateConfig(RpcConfig config)
         {
+            bool changed = false;
+
+            if (string.IsNullOrWhiteSpace(config.InGameLine1) && !string.IsNullOrWhiteSpace(config.Line1))
+            {
+                config.InGameLine1 = config.Line1;
+                changed = true;
+            }
+
+            if (string.IsNullOrWhiteSpace(config.InGameLine2) && !string.IsNullOrWhiteSpace(config.Line2))
+            {
+                config.InGameLine2 = config.Line2;
+                changed = true;
+            }
+
+            if (string.IsNullOrWhiteSpace(config.MainMenuLine1))
+            {
+                config.MainMenuLine1 = new RpcConfig().MainMenuLine1;
+                changed = true;
+            }
+
+            if (string.IsNullOrWhiteSpace(config.MainMenuLine2))
+            {
+                config.MainMenuLine2 = new RpcConfig().MainMenuLine2;
+                changed = true;
+            }
+
             if (string.IsNullOrWhiteSpace(config.ProgressiveEventSmallTextTemplate) ||
                 string.Equals(config.ProgressiveEventSmallTextTemplate, RpcConfig.LegacyProgressiveEventSmallTextTemplate, StringComparison.Ordinal))
             {
                 config.ProgressiveEventSmallTextTemplate = "Clearing: {{ActiveProgressiveEvent}}{{ActiveEventDetailText != \"\" ? \" (\" + ActiveEventDetailText + \")\" : \"\"}}";
-                SaveConfig();
+                changed = true;
             }
 
             if (string.IsNullOrWhiteSpace(config.NonProgressiveEventSmallTextTemplate) ||
                 string.Equals(config.NonProgressiveEventSmallTextTemplate, RpcConfig.LegacyNonProgressiveEventSmallTextTemplate, StringComparison.Ordinal))
             {
                 config.NonProgressiveEventSmallTextTemplate = "{{ActiveNonProgressiveEvent == \"Blood Moon\" ? \"The Blood Moon is rising...\" : ActiveNonProgressiveEvent == \"Solar Eclipse\" ? \"A Solar Eclipse is happening!\" : \"Clearing: {{ActiveNonProgressiveEvent}}\"}}";
+                changed = true;
+            }
+
+            if (changed)
+            {
                 SaveConfig();
             }
         }

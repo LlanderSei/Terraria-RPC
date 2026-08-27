@@ -11,6 +11,15 @@ public partial class VariablesDialog : Window
 {
   private static readonly (string Token, string Description, string Returns, string Color)[] Variables =
   [
+    ("{{IsAttached}}", "Whether Terraria is attached", "True or False", "#90caf9"),
+    ("{{RawMenuMode}}", "Raw Terraria menuMode value", "Integer (commonly 0, 10, 11, 12, 13, 14, 31, 888)", "#90caf9"),
+    ("{{NetMode}}", "Raw Terraria netMode value", "0 = single-player, 1 = client, 2 = server", "#90caf9"),
+    ("{{GameMenu}}", "Whether Terraria is in a menu", "True or False", "#90caf9"),
+    ("{{Screen}}", "Resolved screen name", "MainMenu, PlayerSelection, WorldSelection, EnteringWorld, InGameSinglePlayer, InGameMultiplayer, MultiplayerBrowser, MultiplayerPlayerSelection, MultiplayerIpSelection, MultiplayerJoining, or Unknown", "#90caf9"),
+    ("{{ScreenName}}", "Alias for Screen", "Same values as Screen", "#90caf9"),
+    ("{{IsInGame}}", "Whether the resolved screen is in-game", "True or False", "#90caf9"),
+    ("{{IsMainMenu}}", "Whether the resolved screen is MainMenu", "True or False", "#90caf9"),
+    ("---", "", "", ""),
     ("{{WorldName}}", "The current world's name", "String or empty", "#4fc3f7"),
     ("{{Biome}}", "Current biome and depth (e.g. Underground Jungle, Cavern Snow)", "String", "#4fc3f7"),
     ("{{WorldSize}}", "World size", "Small, Medium, or Large", "#4fc3f7"),
