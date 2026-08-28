@@ -7,7 +7,74 @@ namespace TerrariaRPC.Core
 {
   public partial class TerrariaMemoryReader
   {
-    private void ScanBossesAndEvents(ClrRuntime runtime, ClrAppDomain appDomain, ClrType mainType)
+    private sealed class BossCandidate
+    {
+      public string Name { get; set; } = "";
+      public int Hp { get; set; }
+      public int MaxHp { get; set; }
+      public bool HasShield { get; set; }
+      public int Shield { get; set; }
+      public int MaxShield { get; set; }
+      public bool HitByPlayer { get; set; }
+      public bool RecentlyHitByPlayer { get; set; }
+      public long HitByPlayerSinceTicks { get; set; }
+      public float DistanceSq { get; set; } = float.MaxValue;
+      public bool IsPillar { get; set; }
+    }
+
+    private readonly Dictionary<string, long> _bossHitSeenTicks = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, int> _bossLastObservedHp = new(StringComparer.OrdinalIgnoreCase);
+
+    private static bool IsNpcHitByPlayer(ClrObject npcObj, int myPlayer)
+    {
+      if (myPlayer < 0)
+      {
+        return false;
+      }
+
+      try
+      {
+        var interactionArrayObj = npcObj.ReadObjectField("playerInteraction");
+        if (interactionArrayObj.IsValid && interactionArrayObj.IsArray)
+        {
+          var interactionType = interactionArrayObj.Type;
+          if (interactionType != null)
+          {
+            return interactionType.ReadArrayElements<bool>(interactionArrayObj.Address, myPlayer, 1).FirstOrDefault();
+          }
+        }
+
+        return npcObj.ReadField<int>("lastInteraction") == myPlayer;
+      }
+      catch
+      {
+        return false;
+      }
+    }
+
+    private long GetOrUpdateBossHitTicks(string bossName, int currentHp, bool hitByPlayer, long nowTicks)
+    {
+      if (_bossLastObservedHp.TryGetValue(bossName, out int previousHp) && currentHp < previousHp)
+      {
+        _bossHitSeenTicks[bossName] = nowTicks;
+      }
+
+      _bossLastObservedHp[bossName] = currentHp;
+
+      if (hitByPlayer && !_bossHitSeenTicks.ContainsKey(bossName))
+      {
+        _bossHitSeenTicks[bossName] = nowTicks;
+      }
+
+      if (!hitByPlayer && !_bossHitSeenTicks.ContainsKey(bossName))
+      {
+        return 0;
+      }
+
+      return _bossHitSeenTicks.TryGetValue(bossName, out long seenTicks) ? seenTicks : 0;
+    }
+
+    private void ScanBossesAndEvents(ClrRuntime runtime, ClrAppDomain appDomain, ClrType mainType, RpcConfig config)
     {
       static bool TryReadVector2Center(ClrObject obj, string fieldName, out float centerX, out float centerY)
       {
@@ -56,6 +123,7 @@ namespace TerrariaRPC.Core
       CurrentState.ActivePeacefulEventValue = "";
       CurrentState.ActiveWeatherName = "";
       bool lunarEventActive = false;
+      long nowTicks = DateTime.UtcNow.Ticks;
 
       if (CurrentState.GameMenu || (CurrentState.Screen != GameScreen.InGameSinglePlayer && CurrentState.Screen != GameScreen.InGameMultiplayer)) return;
 
@@ -72,23 +140,24 @@ namespace TerrariaRPC.Core
             if (npcArrayObj.IsValid && npcArrayObj.IsArray)
             {
               int len = npcArrayObj.AsArray().Length;
-              string bestBossName = "";
-              int bestBossHp = 0;
-              int bestBossMaxHp = 0;
-              int highestMaxHp = 0;
+              int myPlayer = CurrentState.PlayerIndex;
 
-              // The Twins tracking: accumulate both eyes' HP for combined display
-              int twinsLife = 0, twinsLifeMax = 0, twinsCount = 0;
               // Brain of Cthulhu tracking: combine the Brain and Creepers into one boss total
               int bocLife = 0, bocLifeMax = 0, bocCount = 0;
+              bool bocHitByPlayer = false;
+              float bocDistanceSq = float.MaxValue;
               // Eater of Worlds tracking: combine all active worm segments into one boss total
               int eowLife = 0, eowLifeMax = 0, eowCount = 0;
-              // Skeletron Prime tracking: combine the head and all limbs.
-              int primeLife = 0, primeLifeMax = 0, primeCount = 0;
+              bool eowHitByPlayer = false;
+              float eowDistanceSq = float.MaxValue;
               // Golem tracking: combine the body, head, and fists.
               int golemLife = 0, golemLifeMax = 0, golemCount = 0;
+              bool golemHitByPlayer = false;
+              float golemDistanceSq = float.MaxValue;
               // Moon Lord tracking: combine the core, hands, and head.
               int moonLordLife = 0, moonLordLifeMax = 0, moonLordCount = 0;
+              bool moonLordHitByPlayer = false;
+              float moonLordDistanceSq = float.MaxValue;
               float playerCenterX = CurrentState.PlayerHasPosition ? CurrentState.PlayerCenterX : 0f;
               float playerCenterY = CurrentState.PlayerHasPosition ? CurrentState.PlayerCenterY : 0f;
               bool hasPlayerCenter = CurrentState.PlayerHasPosition;
@@ -101,6 +170,72 @@ namespace TerrariaRPC.Core
               int nearestPillarShield = 0;
               int nearestPillarMaxShield = 0;
               float nearestPillarDistanceSq = float.MaxValue;
+
+              bool UseHitPriority()
+              {
+                return config.PrioritizeTargetHitBoss || (!config.PrioritizeNearestBoss && !config.PrioritizeHighestHealthBoss);
+              }
+
+              bool IsBetterBossCandidate(BossCandidate candidate, BossCandidate? current)
+              {
+                if (current == null || string.IsNullOrEmpty(current.Name))
+                {
+                  return true;
+                }
+
+                if (UseHitPriority() && candidate.RecentlyHitByPlayer != current.RecentlyHitByPlayer)
+                {
+                  return candidate.RecentlyHitByPlayer;
+                }
+
+                if (UseHitPriority() && candidate.RecentlyHitByPlayer && current.RecentlyHitByPlayer && candidate.HitByPlayerSinceTicks != current.HitByPlayerSinceTicks)
+                {
+                  return candidate.HitByPlayerSinceTicks > current.HitByPlayerSinceTicks;
+                }
+
+                if (config.PrioritizeNearestBoss && candidate.DistanceSq != current.DistanceSq)
+                {
+                  return candidate.DistanceSq < current.DistanceSq;
+                }
+
+                if (config.PrioritizeHighestHealthBoss && candidate.Hp != current.Hp)
+                {
+                  return candidate.Hp > current.Hp;
+                }
+
+                if (candidate.Hp != current.Hp)
+                {
+                  return candidate.Hp > current.Hp;
+                }
+
+                if (candidate.MaxHp != current.MaxHp)
+                {
+                  return candidate.MaxHp > current.MaxHp;
+                }
+
+                if (candidate.HasShield != current.HasShield)
+                {
+                  return candidate.HasShield;
+                }
+
+                return candidate.DistanceSq < current.DistanceSq;
+              }
+
+              BossCandidate? bestBoss = null;
+
+              void ConsiderBoss(BossCandidate candidate)
+              {
+                if (string.IsNullOrWhiteSpace(candidate.Name) || candidate.MaxHp <= 0)
+                {
+                  return;
+                }
+
+                if (IsBetterBossCandidate(candidate, bestBoss))
+                {
+                  bestBoss = candidate;
+                }
+              }
+
               for (int i = 0; i < len; i++)
               {
                 var npcObj = npcArrayObj.AsArray().GetObjectValue(i);
@@ -120,23 +255,43 @@ namespace TerrariaRPC.Core
                 {
                   int life = npcObj.ReadField<int>("life");
                   int lifeMax = npcObj.ReadField<int>("lifeMax");
-
                   // Skip dead/inactive NPC slots (life<=0 means the slot is empty or dead)
                   if (life <= 0) continue;
 
                   string typeName = GetNpcTypeName(runtime, appDomain, npcObj, type);
                   if (string.IsNullOrEmpty(typeName)) continue;
 
+                  bool hitByPlayer = IsNpcHitByPlayer(npcObj, myPlayer);
+                  long hitByPlayerSinceTicks = GetOrUpdateBossHitTicks(typeName, life, hitByPlayer, nowTicks);
+                  bool recentlyHitByPlayer = hitByPlayerSinceTicks > 0 && (nowTicks - hitByPlayerSinceTicks) <= TimeSpan.FromSeconds(3).Ticks;
+                  float distanceSq = float.MaxValue;
+                  if (hasPlayerCenter && TryReadVector2Center(npcObj, "position", out float npcCenterX, out float npcCenterY))
+                  {
+                    float dx = npcCenterX - playerCenterX;
+                    float dy = npcCenterY - playerCenterY;
+                    distanceSq = dx * dx + dy * dy;
+                  }
+
                   // Debug: log every NPC that passes the boss check so we can verify type IDs
                   Logger.Debug($"[BossFound] type={type} boss={isBoss} isPillar={isPillar} life={life}/{lifeMax} name={typeName}");
 
-                  // The Twins: accumulate both Retinazer (125) and Spazmatism (126)
                   if (type == 125 || type == 126)
                   {
-                    twinsLife += life;
-                    twinsLifeMax += lifeMax;
-                    twinsCount++;
-                    continue; // handled after loop
+                    ConsiderBoss(new BossCandidate
+                    {
+                      Name = typeName,
+                      Hp = life,
+                      MaxHp = lifeMax,
+                      HasShield = false,
+                      Shield = 0,
+                      MaxShield = 0,
+                      HitByPlayer = hitByPlayer,
+                      RecentlyHitByPlayer = recentlyHitByPlayer,
+                      HitByPlayerSinceTicks = hitByPlayerSinceTicks,
+                      DistanceSq = distanceSq,
+                      IsPillar = false
+                    });
+                    continue;
                   }
 
                   // Brain of Cthulhu: aggregate the brain and all creepers.
@@ -145,6 +300,8 @@ namespace TerrariaRPC.Core
                     bocLife += life;
                     bocLifeMax += lifeMax;
                     bocCount++;
+                    bocHitByPlayer |= hitByPlayer;
+                    bocDistanceSq = Math.Min(bocDistanceSq, distanceSq);
                     continue;
                   }
 
@@ -154,15 +311,33 @@ namespace TerrariaRPC.Core
                     eowLife += life;
                     eowLifeMax += lifeMax;
                     eowCount++;
+                    eowHitByPlayer |= hitByPlayer;
+                    eowDistanceSq = Math.Min(eowDistanceSq, distanceSq);
                     continue;
                   }
 
-                  // Skeletron Prime: aggregate the head plus all attached limbs.
-                  if (type == 127 || type == 128 || type == 129 || type == 130 || type == 131)
+                  // Skeletron Prime: only the head counts for HP/status.
+                  if (type == 128 || type == 129 || type == 130 || type == 131)
                   {
-                    primeLife += life;
-                    primeLifeMax += lifeMax;
-                    primeCount++;
+                    continue;
+                  }
+
+                  if (type == 127)
+                  {
+                    ConsiderBoss(new BossCandidate
+                    {
+                      Name = typeName,
+                      Hp = life,
+                      MaxHp = lifeMax,
+                      HasShield = false,
+                      Shield = 0,
+                      MaxShield = 0,
+                      HitByPlayer = hitByPlayer,
+                      RecentlyHitByPlayer = recentlyHitByPlayer,
+                      HitByPlayerSinceTicks = hitByPlayerSinceTicks,
+                      DistanceSq = distanceSq,
+                      IsPillar = false
+                    });
                     continue;
                   }
 
@@ -172,6 +347,8 @@ namespace TerrariaRPC.Core
                     golemLife += life;
                     golemLifeMax += lifeMax;
                     golemCount++;
+                    golemHitByPlayer |= hitByPlayer;
+                    golemDistanceSq = Math.Min(golemDistanceSq, distanceSq);
                     continue;
                   }
 
@@ -181,71 +358,80 @@ namespace TerrariaRPC.Core
                     moonLordLife += life;
                     moonLordLifeMax += lifeMax;
                     moonLordCount++;
+                    moonLordHitByPlayer |= hitByPlayer;
+                    moonLordDistanceSq = Math.Min(moonLordDistanceSq, distanceSq);
                     continue;
                   }
 
                   if (isPillar)
                   {
                     lunarEventActive = true;
-                    if (hasPlayerCenter && TryReadVector2Center(npcObj, "position", out float pillarCenterX, out float pillarCenterY))
+                    int shield = GetPillarShield(mainType, appDomain, type);
+                    int maxShield = GetPillarMaxShield(mainType, appDomain);
+                    bool pillarHasShield = shield > 0;
+
+                    if (distanceSq < nearestPillarDistanceSq)
                     {
-                      float dx = pillarCenterX - playerCenterX;
-                      float dy = pillarCenterY - playerCenterY;
-                      float distanceSq = dx * dx + dy * dy;
-                      if (distanceSq < nearestPillarDistanceSq)
-                      {
-                        int shield = GetPillarShield(mainType, appDomain, type);
-                        int maxShield = GetPillarMaxShield(mainType, appDomain);
-                        nearestPillarDistanceSq = distanceSq;
-                        nearestPillarName = typeName;
-                        nearestPillarHasShield = shield > 0;
-                        nearestPillarShield = shield;
-                        nearestPillarMaxShield = maxShield > 0 ? maxShield : shield;
-                        nearestPillarHp = life;
-                        nearestPillarMaxHp = lifeMax;
-                      }
+                      nearestPillarDistanceSq = distanceSq;
+                      nearestPillarName = typeName;
+                      nearestPillarHasShield = pillarHasShield;
+                      nearestPillarShield = shield;
+                      nearestPillarMaxShield = maxShield > 0 ? maxShield : shield;
+                      nearestPillarHp = life;
+                      nearestPillarMaxHp = lifeMax;
                     }
+                    ConsiderBoss(new BossCandidate
+                    {
+                      Name = typeName,
+                      Hp = pillarHasShield ? shield : life,
+                      MaxHp = pillarHasShield ? (maxShield > 0 ? maxShield : shield) : lifeMax,
+                      HasShield = pillarHasShield,
+                      Shield = shield,
+                      MaxShield = maxShield > 0 ? maxShield : shield,
+                      HitByPlayer = hitByPlayer,
+                      RecentlyHitByPlayer = recentlyHitByPlayer,
+                      HitByPlayerSinceTicks = hitByPlayerSinceTicks,
+                      DistanceSq = distanceSq,
+                      IsPillar = true
+                    });
                     continue;
                   }
 
-                  if (lifeMax > highestMaxHp)
+                  ConsiderBoss(new BossCandidate
                   {
-                    highestMaxHp = lifeMax;
-                    bestBossName = typeName;
-                    bestBossHp = life;
-                    bestBossMaxHp = lifeMax;
-                  }
+                    Name = typeName,
+                    Hp = life,
+                    MaxHp = lifeMax,
+                    HasShield = false,
+                    Shield = 0,
+                    MaxShield = 0,
+                    HitByPlayer = hitByPlayer,
+                    RecentlyHitByPlayer = recentlyHitByPlayer,
+                    HitByPlayerSinceTicks = hitByPlayerSinceTicks,
+                    DistanceSq = distanceSq,
+                    IsPillar = false
+                  });
                 }
-              }
-
-              // Resolve The Twins post-loop.
-              if (twinsCount > 0)
-              {
-                _lastTwinsMaxHp = Math.Max(_lastTwinsMaxHp, twinsLifeMax);
-                if (_lastTwinsMaxHp >= highestMaxHp)
-                {
-                  bestBossName = "The Twins";
-                  bestBossHp = twinsLife;
-                  bestBossMaxHp = _lastTwinsMaxHp;
-                  highestMaxHp = _lastTwinsMaxHp;
-                }
-              }
-              else
-              {
-                _lastTwinsMaxHp = 0;
               }
 
               // Resolve Brain of Cthulhu post-loop.
               if (bocCount > 0)
               {
                 _lastBocMaxHp = Math.Max(_lastBocMaxHp, bocLifeMax);
-                if (_lastBocMaxHp >= highestMaxHp)
+                ConsiderBoss(new BossCandidate
                 {
-                  bestBossName = "Brain of Cthulhu";
-                  bestBossHp = bocLife;
-                  bestBossMaxHp = _lastBocMaxHp > 0 ? _lastBocMaxHp : bocLifeMax;
-                  highestMaxHp = _lastBocMaxHp;
-                }
+                  Name = "Brain of Cthulhu",
+                  Hp = bocLife,
+                  MaxHp = _lastBocMaxHp > 0 ? _lastBocMaxHp : bocLifeMax,
+                  HasShield = false,
+                  Shield = 0,
+                  MaxShield = 0,
+                  HitByPlayer = bocHitByPlayer,
+                  RecentlyHitByPlayer = GetOrUpdateBossHitTicks("Brain of Cthulhu", bocLife, bocHitByPlayer, nowTicks) > 0,
+                  HitByPlayerSinceTicks = GetOrUpdateBossHitTicks("Brain of Cthulhu", bocLife, bocHitByPlayer, nowTicks),
+                  DistanceSq = bocDistanceSq,
+                  IsPillar = false
+                });
               }
               else
               {
@@ -256,47 +442,46 @@ namespace TerrariaRPC.Core
               if (eowCount > 0)
               {
                 _lastEowMaxHp = Math.Max(_lastEowMaxHp, eowLifeMax);
-                if (_lastEowMaxHp >= highestMaxHp)
+                ConsiderBoss(new BossCandidate
                 {
-                  bestBossName = "Eater of Worlds";
-                  bestBossHp = eowLife;
-                  bestBossMaxHp = _lastEowMaxHp > 0 ? _lastEowMaxHp : eowLifeMax;
-                  highestMaxHp = _lastEowMaxHp;
-                }
+                  Name = "Eater of Worlds",
+                  Hp = eowLife,
+                  MaxHp = _lastEowMaxHp > 0 ? _lastEowMaxHp : eowLifeMax,
+                  HasShield = false,
+                  Shield = 0,
+                  MaxShield = 0,
+                  HitByPlayer = eowHitByPlayer,
+                  RecentlyHitByPlayer = GetOrUpdateBossHitTicks("Eater of Worlds", eowLife, eowHitByPlayer, nowTicks) > 0,
+                  HitByPlayerSinceTicks = GetOrUpdateBossHitTicks("Eater of Worlds", eowLife, eowHitByPlayer, nowTicks),
+                  DistanceSq = eowDistanceSq,
+                  IsPillar = false
+                });
               }
               else
               {
                 _lastEowMaxHp = 0;
               }
 
-              // Resolve Skeletron Prime post-loop.
-              if (primeCount > 0)
-              {
-                _lastPrimeMaxHp = Math.Max(_lastPrimeMaxHp, primeLifeMax);
-                if (_lastPrimeMaxHp >= highestMaxHp)
-                {
-                  bestBossName = "Skeletron Prime";
-                  bestBossHp = primeLife;
-                  bestBossMaxHp = _lastPrimeMaxHp;
-                  highestMaxHp = _lastPrimeMaxHp;
-                }
-              }
-              else
-              {
-                _lastPrimeMaxHp = 0;
-              }
+              _lastPrimeMaxHp = 0;
 
               // Resolve Golem post-loop.
               if (golemCount > 0)
               {
                 _lastGolemMaxHp = Math.Max(_lastGolemMaxHp, golemLifeMax);
-                if (_lastGolemMaxHp >= highestMaxHp)
+                ConsiderBoss(new BossCandidate
                 {
-                  bestBossName = "Golem";
-                  bestBossHp = golemLife;
-                  bestBossMaxHp = _lastGolemMaxHp;
-                  highestMaxHp = _lastGolemMaxHp;
-                }
+                  Name = "Golem",
+                  Hp = golemLife,
+                  MaxHp = _lastGolemMaxHp,
+                  HasShield = false,
+                  Shield = 0,
+                  MaxShield = 0,
+                  HitByPlayer = golemHitByPlayer,
+                  RecentlyHitByPlayer = GetOrUpdateBossHitTicks("Golem", golemLife, golemHitByPlayer, nowTicks) > 0,
+                  HitByPlayerSinceTicks = GetOrUpdateBossHitTicks("Golem", golemLife, golemHitByPlayer, nowTicks),
+                  DistanceSq = golemDistanceSq,
+                  IsPillar = false
+                });
               }
               else
               {
@@ -307,50 +492,50 @@ namespace TerrariaRPC.Core
               if (moonLordCount > 0)
               {
                 _lastMoonLordMaxHp = Math.Max(_lastMoonLordMaxHp, moonLordLifeMax);
-                if (_lastMoonLordMaxHp >= highestMaxHp)
+                ConsiderBoss(new BossCandidate
                 {
-                  bestBossName = "Moon Lord";
-                  bestBossHp = moonLordLife;
-                  bestBossMaxHp = _lastMoonLordMaxHp;
-                  highestMaxHp = _lastMoonLordMaxHp;
-                }
+                  Name = "Moon Lord",
+                  Hp = moonLordLife,
+                  MaxHp = _lastMoonLordMaxHp,
+                  HasShield = false,
+                  Shield = 0,
+                  MaxShield = 0,
+                  HitByPlayer = moonLordHitByPlayer,
+                  RecentlyHitByPlayer = GetOrUpdateBossHitTicks("Moon Lord", moonLordLife, moonLordHitByPlayer, nowTicks) > 0,
+                  HitByPlayerSinceTicks = GetOrUpdateBossHitTicks("Moon Lord", moonLordLife, moonLordHitByPlayer, nowTicks),
+                  DistanceSq = moonLordDistanceSq,
+                  IsPillar = false
+                });
               }
               else
               {
                 _lastMoonLordMaxHp = 0;
               }
 
-              if (!string.IsNullOrEmpty(nearestPillarName) && nearestPillarDistanceSq <= pillarPriorityRangeSq)
+              if (config.PrioritizeLunarPillarsNearby && !string.IsNullOrEmpty(nearestPillarName) && nearestPillarDistanceSq <= pillarPriorityRangeSq)
               {
-                bestBossName = nearestPillarName;
-                if (nearestPillarHasShield)
+                bestBoss = new BossCandidate
                 {
-                  bestBossHp = nearestPillarShield;
-                  bestBossMaxHp = nearestPillarMaxShield;
-                  CurrentState.ActiveBossHasShield = true;
-                  CurrentState.ActiveBossSp = nearestPillarShield;
-                  CurrentState.ActiveBossMaxSp = nearestPillarMaxShield;
-                }
-                else
-                {
-                  bestBossHp = nearestPillarHp;
-                  bestBossMaxHp = nearestPillarMaxHp;
-                  CurrentState.ActiveBossHasShield = false;
-                  CurrentState.ActiveBossSp = 0;
-                  CurrentState.ActiveBossMaxSp = 0;
-                }
+                  Name = nearestPillarName,
+                  Hp = nearestPillarHasShield ? nearestPillarShield : nearestPillarHp,
+                  MaxHp = nearestPillarHasShield ? nearestPillarMaxShield : nearestPillarMaxHp,
+                  HasShield = nearestPillarHasShield,
+                  Shield = nearestPillarShield,
+                  MaxShield = nearestPillarMaxShield,
+                  HitByPlayer = true,
+                  DistanceSq = nearestPillarDistanceSq,
+                  IsPillar = true
+                };
               }
 
-              if (!string.IsNullOrEmpty(bestBossName))
+              if (bestBoss != null)
               {
-                CurrentState.ActiveBossName = bestBossName;
-                CurrentState.ActiveBossHp = bestBossHp;
-                CurrentState.ActiveBossMaxHp = bestBossMaxHp;
-                if (!CurrentState.ActiveBossHasShield)
-                {
-                  CurrentState.ActiveBossSp = 0;
-                  CurrentState.ActiveBossMaxSp = 0;
-                }
+                CurrentState.ActiveBossName = bestBoss.Name;
+                CurrentState.ActiveBossHp = bestBoss.Hp;
+                CurrentState.ActiveBossMaxHp = bestBoss.MaxHp;
+                CurrentState.ActiveBossHasShield = bestBoss.HasShield;
+                CurrentState.ActiveBossSp = bestBoss.HasShield ? bestBoss.Shield : 0;
+                CurrentState.ActiveBossMaxSp = bestBoss.HasShield ? bestBoss.MaxShield : 0;
               }
             }
           }

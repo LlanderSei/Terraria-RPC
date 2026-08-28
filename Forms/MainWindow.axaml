@@ -43,30 +43,30 @@
       <StackPanel Margin="20,16,20,16" Spacing="16">
         <Grid Name="MainMenuPanel" ColumnDefinitions="180,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Line 1:" VerticalAlignment="Top" Margin="0,6,0,10" />
-          <TextBox Name="MainMenuLine1Box" Grid.Row="0" Grid.Column="1" Margin="0,0,0,10" GotFocus="OnMainMenuFieldGotFocus" LostFocus="OnMainMenuFieldLostFocus" />
+          <TextBox Name="MainMenuLine1Box" Grid.Row="0" Grid.Column="1" Margin="0,0,0,10" TextChanged="OnSingleLineTextChanged" PastingFromClipboard="OnSingleLinePastingFromClipboard" GotFocus="OnMainMenuFieldGotFocus" LostFocus="OnMainMenuFieldLostFocus" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Line 2:" VerticalAlignment="Top" Margin="0,6,0,10" />
-          <TextBox Name="MainMenuLine2Box" Grid.Row="1" Grid.Column="1" Margin="0,0,0,10" GotFocus="OnMainMenuFieldGotFocus" LostFocus="OnMainMenuFieldLostFocus" />
+          <TextBox Name="MainMenuLine2Box" Grid.Row="1" Grid.Column="1" Margin="0,0,0,10" TextChanged="OnSingleLineTextChanged" PastingFromClipboard="OnSingleLinePastingFromClipboard" GotFocus="OnMainMenuFieldGotFocus" LostFocus="OnMainMenuFieldLostFocus" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Small Status Image:" VerticalAlignment="Top" Margin="0,6,0,10" />
-          <TextBox Name="MainMenuSmallImageUrlBox" Grid.Row="2" Grid.Column="1" Margin="0,0,0,10" GotFocus="OnMainMenuFieldGotFocus" LostFocus="OnMainMenuFieldLostFocus" />
+          <TextBox Name="MainMenuSmallImageUrlBox" Grid.Row="2" Grid.Column="1" Margin="0,0,0,10" TextChanged="OnSingleLineTextChanged" PastingFromClipboard="OnSingleLinePastingFromClipboard" GotFocus="OnMainMenuFieldGotFocus" LostFocus="OnMainMenuFieldLostFocus" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Small Status Text:" VerticalAlignment="Top" Margin="0,6,0,10" />
-          <TextBox Name="MainMenuSmallImageTextBox" Grid.Row="3" Grid.Column="1" Margin="0,0,0,10" GotFocus="OnMainMenuFieldGotFocus" LostFocus="OnMainMenuFieldLostFocus" />
+          <TextBox Name="MainMenuSmallImageTextBox" Grid.Row="3" Grid.Column="1" Margin="0,0,0,10" TextChanged="OnSingleLineTextChanged" PastingFromClipboard="OnSingleLinePastingFromClipboard" GotFocus="OnMainMenuFieldGotFocus" LostFocus="OnMainMenuFieldLostFocus" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Large Status Image:" VerticalAlignment="Top" Margin="0,6,0,10" />
-          <TextBox Name="MainMenuLargeImageUrlBox" Grid.Row="4" Grid.Column="1" Margin="0,0,0,10" GotFocus="OnMainMenuFieldGotFocus" LostFocus="OnMainMenuFieldLostFocus" />
+          <TextBox Name="MainMenuLargeImageUrlBox" Grid.Row="4" Grid.Column="1" Margin="0,0,0,10" TextChanged="OnSingleLineTextChanged" PastingFromClipboard="OnSingleLinePastingFromClipboard" GotFocus="OnMainMenuFieldGotFocus" LostFocus="OnMainMenuFieldLostFocus" />
 
           <TextBlock Grid.Row="5" Grid.Column="0" Text="Large Status Text:" VerticalAlignment="Top" Margin="0,6,0,10" />
-          <TextBox Name="MainMenuLargeImageTextBox" Grid.Row="5" Grid.Column="1" Margin="0,0,0,10" GotFocus="OnMainMenuFieldGotFocus" LostFocus="OnMainMenuFieldLostFocus" />
+          <TextBox Name="MainMenuLargeImageTextBox" Grid.Row="5" Grid.Column="1" Margin="0,0,0,10" TextChanged="OnSingleLineTextChanged" PastingFromClipboard="OnSingleLinePastingFromClipboard" GotFocus="OnMainMenuFieldGotFocus" LostFocus="OnMainMenuFieldLostFocus" />
         </Grid>
 
         <Grid Name="InGamePanel" ColumnDefinitions="180,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" IsVisible="False">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Line 1:" VerticalAlignment="Center" Margin="0,0,0,10" />
-          <TextBox Name="Line1Box" Grid.Row="0" Grid.Column="1" Margin="0,0,0,10" />
+          <TextBox Name="Line1Box" Grid.Row="0" Grid.Column="1" Margin="0,0,0,10" TextChanged="OnSingleLineTextChanged" PastingFromClipboard="OnSingleLinePastingFromClipboard" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Line 2:" VerticalAlignment="Center" Margin="0,0,0,10" />
-          <TextBox Name="Line2Box" Grid.Row="1" Grid.Column="1" Margin="0,0,0,10" />
+          <TextBox Name="Line2Box" Grid.Row="1" Grid.Column="1" Margin="0,0,0,10" TextChanged="OnSingleLineTextChanged" PastingFromClipboard="OnSingleLinePastingFromClipboard" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Small Image &amp; Text Style:" VerticalAlignment="Center" Margin="0,0,0,10" />
           <ComboBox Name="SmallImageStyleBox" Grid.Row="2" Grid.Column="1" HorizontalAlignment="Stretch" Margin="0,0,0,10" SelectionChanged="OnSmallImageStyleChanged">
@@ -115,10 +115,10 @@
           </StackPanel>
 
           <TextBlock Name="SmallImageCustomUrlLabel" Grid.Row="4" Grid.Column="0" Text="Image:" VerticalAlignment="Center" Margin="20,0,0,10" IsVisible="False" />
-          <TextBox Name="SmallImageCustomUrlBox" Grid.Row="4" Grid.Column="1" Margin="0,0,0,10" IsVisible="False" />
+          <TextBox Name="SmallImageCustomUrlBox" Grid.Row="4" Grid.Column="1" Margin="0,0,0,10" IsVisible="False" TextChanged="OnSingleLineTextChanged" PastingFromClipboard="OnSingleLinePastingFromClipboard" />
 
           <TextBlock Name="SmallImageCustomTextLabel" Grid.Row="5" Grid.Column="0" Text="Text:" VerticalAlignment="Center" Margin="20,0,0,10" IsVisible="False" />
-          <TextBox Name="SmallImageCustomTextBox" Grid.Row="5" Grid.Column="1" Margin="0,0,0,10" IsVisible="False" />
+          <TextBox Name="SmallImageCustomTextBox" Grid.Row="5" Grid.Column="1" Margin="0,0,0,10" IsVisible="False" TextChanged="OnSingleLineTextChanged" PastingFromClipboard="OnSingleLinePastingFromClipboard" />
 
           <TextBlock Grid.Row="6" Grid.Column="0" Text="Large Image &amp; Text Style:" VerticalAlignment="Center" Margin="0,0,0,10" />
           <ComboBox Name="LargeImageStyleBox" Grid.Row="6" Grid.Column="1" HorizontalAlignment="Stretch" Margin="0,0,0,10" SelectionChanged="OnLargeImageStyleChanged">
@@ -127,16 +127,16 @@
           </ComboBox>
 
           <TextBlock Name="LargeImageCustomUrlLabel" Grid.Row="7" Grid.Column="0" Text="Image:" VerticalAlignment="Center" Margin="20,0,0,10" IsVisible="False" />
-          <TextBox Name="LargeImageCustomUrlBox" Grid.Row="7" Grid.Column="1" Margin="0,0,0,10" IsVisible="False" />
+          <TextBox Name="LargeImageCustomUrlBox" Grid.Row="7" Grid.Column="1" Margin="0,0,0,10" IsVisible="False" TextChanged="OnSingleLineTextChanged" PastingFromClipboard="OnSingleLinePastingFromClipboard" />
 
           <TextBlock Name="LargeImageCustomTextLabel" Grid.Row="8" Grid.Column="0" Text="Text:" VerticalAlignment="Center" Margin="20,0,0,10" IsVisible="False" />
-          <TextBox Name="LargeImageCustomTextBox" Grid.Row="8" Grid.Column="1" Margin="0,0,0,10" IsVisible="False" />
+          <TextBox Name="LargeImageCustomTextBox" Grid.Row="8" Grid.Column="1" Margin="0,0,0,10" IsVisible="False" TextChanged="OnSingleLineTextChanged" PastingFromClipboard="OnSingleLinePastingFromClipboard" />
         </Grid>
 
         <TextBlock Text="Discord" FontWeight="Bold" FontSize="18" />
         <Grid ColumnDefinitions="180,*" RowDefinitions="Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Client ID:" VerticalAlignment="Center" />
-          <TextBox Name="ClientIdBox" Grid.Row="0" Grid.Column="1" />
+          <TextBox Name="ClientIdBox" Grid.Row="0" Grid.Column="1" TextChanged="OnSingleLineTextChanged" PastingFromClipboard="OnSingleLinePastingFromClipboard" />
         </Grid>
       </StackPanel>
     </ScrollViewer>

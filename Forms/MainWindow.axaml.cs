@@ -8,6 +8,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Interactivity;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.Media;
 using TerrariaRPC.Core;
 
@@ -25,6 +26,7 @@ public partial class MainWindow : Window
   private bool _isUpdatingPaneState = false;
   private ConfigPane _activePane = ConfigPane.MainMenu;
   private bool _isAppShutdownRequested = false;
+  private bool _isNormalizingSingleLineText = false;
   private TextBox? _expandedMainMenuField;
 
   public MainWindow()
@@ -185,6 +187,66 @@ public partial class MainWindow : Window
   public void OnLargeImageStyleChanged(object sender, SelectionChangedEventArgs e)
   {
     UpdateVisibility();
+  }
+
+  public void OnSingleLineTextChanged(object sender, TextChangedEventArgs e)
+  {
+    if (_isNormalizingSingleLineText) return;
+    if (sender is not TextBox textBox) return;
+
+    string currentText = textBox.Text ?? "";
+    if (!currentText.Contains('\r') && !currentText.Contains('\n'))
+      return;
+
+    string normalizedText = currentText
+      .Replace("\r\n", " ")
+      .Replace('\r', ' ')
+      .Replace('\n', ' ');
+
+    if (normalizedText == currentText)
+      return;
+
+    _isNormalizingSingleLineText = true;
+    textBox.Text = normalizedText;
+    _isNormalizingSingleLineText = false;
+  }
+
+  public async void OnSingleLinePastingFromClipboard(object sender, RoutedEventArgs e)
+  {
+    if (sender is not TextBox textBox)
+      return;
+
+    var clipboard = Avalonia.Controls.TopLevel.GetTopLevel(textBox)?.Clipboard;
+    if (clipboard == null)
+      return;
+
+    string? pastedText = await clipboard.TryGetTextAsync();
+    if (string.IsNullOrEmpty(pastedText))
+      return;
+
+    string normalizedText = pastedText
+      .Replace("\r\n", " ")
+      .Replace('\r', ' ')
+      .Replace('\n', ' ');
+
+    int selectionStart = Math.Min(textBox.SelectionStart, textBox.SelectionEnd);
+    int selectionEnd = Math.Max(textBox.SelectionStart, textBox.SelectionEnd);
+    string currentText = textBox.Text ?? "";
+
+    if (selectionStart < 0) selectionStart = 0;
+    if (selectionEnd < selectionStart) selectionEnd = selectionStart;
+    if (selectionStart > currentText.Length) selectionStart = currentText.Length;
+    if (selectionEnd > currentText.Length) selectionEnd = currentText.Length;
+
+    string newText = currentText[..selectionStart] + normalizedText + currentText[selectionEnd..];
+
+    _isNormalizingSingleLineText = true;
+    textBox.Text = newText;
+    textBox.CaretIndex = selectionStart + normalizedText.Length;
+    textBox.SelectionStart = textBox.CaretIndex;
+    textBox.SelectionEnd = textBox.CaretIndex;
+    _isNormalizingSingleLineText = false;
+    e.Handled = true;
   }
 
   public void OnMainMenuPaneClick(object sender, RoutedEventArgs e)

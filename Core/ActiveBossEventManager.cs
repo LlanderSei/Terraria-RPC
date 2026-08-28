@@ -140,7 +140,7 @@ namespace TerrariaRPC.Core
       // Custom URL override mode
       if (config.SmallImageStyleIndex == 1)
       {
-        return (config.SmallImageCustomUrl, config.SmallImageCustomText);
+        return (PresenceTemplateEngine.Format(config.SmallImageCustomUrl, state), config.SmallImageCustomText);
       }
 
       // Rotation mode based on checkboxes

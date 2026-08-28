@@ -134,6 +134,8 @@ namespace TerrariaRPC.Core
       True,
       False,
       Null,
+      In,
+      Not,
       Question,
       DoubleQuestion,
       Colon,
@@ -146,6 +148,9 @@ namespace TerrariaRPC.Core
       Minus,
       OpenParen,
       CloseParen,
+      OpenBracket,
+      CloseBracket,
+      Comma,
       End
     }
 
@@ -198,19 +203,19 @@ namespace TerrariaRPC.Core
 
       private object? ParseEquality()
       {
-        object? left = ParseAdditive();
+        object? left = ParseMembership();
         while (true)
         {
           if (Match(TokenType.EqualEqual))
           {
-            object? right = ParseAdditive();
+            object? right = ParseMembership();
             left = AreEqual(left, right);
             continue;
           }
 
           if (Match(TokenType.NotEqual))
           {
-            object? right = ParseAdditive();
+            object? right = ParseMembership();
             left = !AreEqual(left, right);
             continue;
           }
@@ -219,6 +224,62 @@ namespace TerrariaRPC.Core
         }
 
         return left;
+      }
+
+      private object? ParseMembership()
+      {
+        object? left = ParseAdditive();
+
+        while (true)
+        {
+          bool negate = false;
+          bool matched = false;
+
+          if (Match(TokenType.Not))
+          {
+            if (!Match(TokenType.In))
+              throw new InvalidOperationException("Expected 'in' after 'not'.");
+            negate = true;
+            matched = true;
+          }
+          else if (Match(TokenType.In))
+          {
+            matched = true;
+          }
+
+          if (!matched)
+            break;
+
+          object? right = ParseMembershipTarget();
+          bool contains = IsContainedIn(left, right);
+          left = negate ? !contains : contains;
+        }
+
+        return left;
+      }
+
+      private object? ParseMembershipTarget()
+      {
+        if (Match(TokenType.OpenBracket))
+        {
+          var items = new List<object?>();
+          if (!Match(TokenType.CloseBracket))
+          {
+            while (true)
+            {
+              items.Add(ParseExpression());
+              if (Match(TokenType.Comma))
+                continue;
+
+              Consume(TokenType.CloseBracket);
+              break;
+            }
+          }
+
+          return items;
+        }
+
+        return ParseAdditive();
       }
 
       private object? ParseAdditive()
@@ -366,6 +427,20 @@ namespace TerrariaRPC.Core
         return Math.Abs(ln - rn) < 0.000001;
       }
 
+      private static bool IsContainedIn(object? left, object? right)
+      {
+        if (right is List<object?> list)
+          return list.Any(item => AreEqual(left, item));
+
+        if (right is object?[] array)
+          return array.Any(item => AreEqual(left, item));
+
+        if (right is IEnumerable<object?> enumerable && right is not string)
+          return enumerable.Any(item => AreEqual(left, item));
+
+        return AreEqual(left, right);
+      }
+
       private static List<Token> Tokenize(string expression)
       {
         var tokens = new List<Token>();
@@ -464,6 +539,27 @@ namespace TerrariaRPC.Core
             continue;
           }
 
+          if (c == '[')
+          {
+            tokens.Add(new Token(TokenType.OpenBracket, "[", 0));
+            i++;
+            continue;
+          }
+
+          if (c == ']')
+          {
+            tokens.Add(new Token(TokenType.CloseBracket, "]", 0));
+            i++;
+            continue;
+          }
+
+          if (c == ',')
+          {
+            tokens.Add(new Token(TokenType.Comma, ",", 0));
+            i++;
+            continue;
+          }
+
           if (c == '"')
           {
             var sb = new StringBuilder();
@@ -508,6 +604,8 @@ namespace TerrariaRPC.Core
             string ident = expression[start..i];
             TokenType type = ident switch
             {
+              "in" => TokenType.In,
+              "not" => TokenType.Not,
               "true" => TokenType.True,
               "false" => TokenType.False,
               "null" => TokenType.Null,

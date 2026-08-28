@@ -43,6 +43,7 @@ namespace TerrariaRPC.Core
     public int RawMenuMode { get; set; } = MenuModes.MainMenuOrInGame;
     public int NetMode { get; set; } = 0; // 0 = SP, 1 = MP Client, 2 = MP Server
     public bool GameMenu { get; set; } = true; // true = in a menu, false = in-game
+    public int PlayerIndex { get; set; } = -1;
     public string WorldName { get; set; } = "";
 
     // Resolved high-level screen — computed by TerrariaMemoryReader
@@ -202,6 +203,7 @@ namespace TerrariaRPC.Core
         RawMenuMode = RawMenuMode,
         NetMode = NetMode,
         GameMenu = GameMenu,
+        PlayerIndex = PlayerIndex,
         WorldName = WorldName,
         Screen = Screen,
         Biome = Biome,
@@ -284,6 +286,51 @@ namespace TerrariaRPC.Core
     private int _lastMoonLordMaxHp = 0;
     private string _lastAtkItemSignature = "";
     private readonly object _stateLock = new();
+
+    private void ClearInGameState()
+    {
+      CurrentState.WorldName = "";
+      CurrentState.Biome = "";
+      CurrentState.WorldSize = "";
+      CurrentState.WorldEvil = "";
+      CurrentState.WorldRawDifficulty = "";
+      CurrentState.WorldDifficulty = "";
+      CurrentState.WorldIsHardmode = false;
+      CurrentState.WorldSpecialSeeds = Array.Empty<string>();
+      CurrentState.WorldSecretSeeds = Array.Empty<string>();
+      CurrentState.UIStateName = "";
+
+      CurrentState.PlayerHp = 0;
+      CurrentState.PlayerMaxHp = 0;
+      CurrentState.PlayerMp = 0;
+      CurrentState.PlayerMaxMp = 0;
+      CurrentState.PlayerAtk = "N/A";
+      CurrentState.HighestRecordedAtk = 0;
+      CurrentState.PlayerHighestWeaponDmg = 0;
+      CurrentState.PlayerHighestDps = 0;
+      CurrentState.PlayerDynamicWeaponDmg = 0;
+      CurrentState.PlayerDynamicDps = 0;
+      CurrentState.PlayerDef = 0;
+      CurrentState.PlayerItemHeld = "";
+      CurrentState.PlayerItemPrefix = "";
+      CurrentState.PlayerHasPosition = false;
+      CurrentState.PlayerCenterX = 0f;
+      CurrentState.PlayerCenterY = 0f;
+      CurrentState.PlayerIndex = -1;
+
+      CurrentState.TorchGodActive = false;
+
+      _lastKnownOoaWave = -1;
+      _lastTwinsMaxHp = 0;
+      _lastEowMaxHp = 0;
+      _lastBocMaxHp = 0;
+      _lastPrimeMaxHp = 0;
+      _lastGolemMaxHp = 0;
+      _lastMoonLordMaxHp = 0;
+      _lastAtkItemSignature = "";
+      _bossHitSeenTicks.Clear();
+      _bossLastObservedHp.Clear();
+    }
 
     public bool Attach()
     {
@@ -384,7 +431,7 @@ namespace TerrariaRPC.Core
           ReadMenuState(runtime, appDomain, mainType);
           ReadWorldState(runtime, appDomain, mainType, worldGenType);
           ReadPlayerState(runtime, appDomain, mainType, playerType);
-          ScanBossesAndEvents(runtime, appDomain, mainType);
+          ScanBossesAndEvents(runtime, appDomain, mainType, ConfigManager.CurrentConfig);
         }
         catch (Exception ex)
         {

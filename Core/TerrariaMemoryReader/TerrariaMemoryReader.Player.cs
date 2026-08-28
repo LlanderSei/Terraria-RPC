@@ -12,6 +12,7 @@ namespace TerrariaRPC.Core
       CurrentState.PlayerHasPosition = false;
 
       var myPlayer = mainType.StaticFields.FirstOrDefault(f => f.Name == "myPlayer")?.Read<int>(appDomain) ?? -1;
+      CurrentState.PlayerIndex = myPlayer;
       ulong playersAddr = mainType.StaticFields.FirstOrDefault(f => f.Name == "player")?.Read<ulong>(appDomain) ?? 0;
       ulong playerAddr = 0;
 

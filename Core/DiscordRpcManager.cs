@@ -29,10 +29,10 @@ namespace TerrariaRPC.Core
             }
         }
 
-        public void UpdatePresence(TerrariaGameState state, RpcConfig config)
-        {
-            EnsureClient(config.ClientId);
-            iconManager.UpdateWorldState(state);
+    public void UpdatePresence(TerrariaGameState state, RpcConfig config)
+    {
+        EnsureClient(config.ClientId);
+        iconManager.UpdateWorldState(state);
 
             bool isInGame = state.Screen == GameScreen.InGameSinglePlayer || state.Screen == GameScreen.InGameMultiplayer;
             bool isMenuContext = !isInGame;
@@ -46,8 +46,8 @@ namespace TerrariaRPC.Core
                 : PresenceTemplateEngine.Format(config.InGameLine2, state);
 
             string largeIconUrl = config.LargeImageStyleIndex == 1
-                ? config.LargeImageCustomUrl
-                : (isInGame ? iconManager.GetCurrentWorldIconUrl() : string.IsNullOrWhiteSpace(config.MainMenuLargeImageUrl) ? "https://terraria.wiki.gg/images/Treetop_Forest_1.png" : config.MainMenuLargeImageUrl);
+                ? ResolveImageUrlTemplate(config.LargeImageCustomUrl, state)
+                : (isInGame ? iconManager.GetCurrentWorldIconUrl() : ResolveImageUrlTemplate(config.MainMenuLargeImageUrl, state, "https://terraria.wiki.gg/images/Treetop_Forest_1.png"));
 
             string largeImageText = "";
             if (isInGame)
@@ -111,7 +111,7 @@ namespace TerrariaRPC.Core
             }
             else
             {
-                smallIconUrl = config.MainMenuSmallImageUrl;
+                smallIconUrl = ResolveImageUrlTemplate(config.MainMenuSmallImageUrl, state);
                 smallImageText = PresenceTemplateEngine.Format(config.MainMenuSmallImageText, state);
             }
 
@@ -140,6 +140,12 @@ namespace TerrariaRPC.Core
         public void Dispose()
         {
             client?.Dispose();
+        }
+
+        private static string ResolveImageUrlTemplate(string template, TerrariaGameState state, string fallback = "")
+        {
+            string resolved = PresenceTemplateEngine.Format(template, state).Trim();
+            return string.IsNullOrWhiteSpace(resolved) ? fallback : resolved;
         }
     }
 }

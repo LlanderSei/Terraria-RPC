@@ -133,16 +133,11 @@ namespace TerrariaRPC.Core
         bool isCurrentlyInGame = screen == GameScreen.InGameSinglePlayer || screen == GameScreen.InGameMultiplayer;
         bool wasInGame = _previousScreen == GameScreen.InGameSinglePlayer || _previousScreen == GameScreen.InGameMultiplayer;
 
-        if (!isCurrentlyInGame && wasInGame)
+        if (screen == GameScreen.MainMenu && wasInGame)
         {
-          CurrentState.HighestRecordedAtk = 0;
-          CurrentState.PlayerAtk = "N/A";
-          CurrentState.PlayerHighestWeaponDmg = 0;
-          CurrentState.PlayerHighestDps = 0;
-          CurrentState.PlayerDynamicWeaponDmg = 0;
-          CurrentState.PlayerDynamicDps = 0;
+          ClearInGameState();
         }
-        
+
         _previousScreen = screen;
       }
       CurrentState.Screen = screen;
