@@ -149,10 +149,20 @@ namespace TerrariaRPC.Core
       // Slot A: Holding Item
       if (config.SmallItemEnabled && !string.IsNullOrEmpty(state.PlayerItemHeld))
       {
-        string text = string.IsNullOrEmpty(state.PlayerItemPrefix)
-          ? state.PlayerItemHeld
-          : $"{state.PlayerItemPrefix} {state.PlayerItemHeld}";
-        slots.Add((itemIconUrl, text));
+        string iconUrl = string.IsNullOrWhiteSpace(config.HeldItemSmallImageUrlTemplate)
+          ? itemIconUrl
+          : PresenceTemplateEngine.Format(config.HeldItemSmallImageUrlTemplate, state).Trim();
+
+        string text = string.IsNullOrWhiteSpace(config.HeldItemSmallTextTemplate)
+          ? (string.IsNullOrEmpty(state.PlayerItemPrefix)
+            ? state.PlayerItemHeld
+            : $"{state.PlayerItemPrefix} {state.PlayerItemHeld}")
+          : PresenceTemplateEngine.Format(config.HeldItemSmallTextTemplate, state);
+
+        if (!string.IsNullOrWhiteSpace(iconUrl) || !string.IsNullOrWhiteSpace(text))
+        {
+          slots.Add((iconUrl, text));
+        }
       }
 
       // Boss / Event processing if enabled

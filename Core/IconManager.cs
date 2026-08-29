@@ -268,6 +268,14 @@ namespace TerrariaRPC.Core
           current.BossIcons[kvp.Key] = kvp.Value;
       }
 
+      if (current.BossIcons.TryGetValue("Retinazer", out var retinazerIcon) &&
+          retinazerIcon.EndsWith("/Retinazer.png", StringComparison.OrdinalIgnoreCase))
+      {
+        current.BossIcons["Retinazer"] = defaults.BossIcons.TryGetValue("Retinazer", out var defaultRetinazerIcon)
+          ? defaultRetinazerIcon
+          : "https://terraria.wiki.gg/images/Map_Icon_Retinazer_%28first_form%29.png";
+      }
+
       foreach (var kvp in defaults.EventIcons)
       {
         if (!current.EventIcons.TryGetValue(kvp.Key, out var existing) || string.IsNullOrEmpty(existing))
@@ -366,8 +374,7 @@ namespace TerrariaRPC.Core
         { "Deerclops", "https://terraria.wiki.gg/images/Map_Icon_Deerclops.png" },
         { "Wall of Flesh", "https://terraria.wiki.gg/images/Map_Icon_Wall_of_Flesh.png" },
         { "Queen Slime", "https://terraria.wiki.gg/images/Map_Icon_Queen_Slime.png" },
-        { "The Twins", "https://files.catbox.moe/e0ev9a.png" }, // Custom Icon
-        { "Retinazer", "https://files.catbox.moe/e0ev9a.png" },
+        { "Retinazer", "https://terraria.wiki.gg/images/Map_Icon_Retinazer_%28first_form%29.png" },
         { "Spazmatism", "https://terraria.wiki.gg/images/Map_Icon_Spazmatism_%28first_form%29.png" },
         { "The Destroyer", "https://terraria.wiki.gg/images/Map_Icon_The_Destroyer.png" },
         { "Skeletron Prime", "https://terraria.wiki.gg/images/Map_Icon_Skeletron_Prime.png" },

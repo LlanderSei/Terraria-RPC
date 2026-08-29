@@ -1,0 +1,44 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="TerrariaRPC.Forms.StatusTemplateDialog"
+        Title="Configure Status"
+        Width="820" Height="320"
+        MinWidth="820" MinHeight="320"
+        MaxWidth="820" MaxHeight="320"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Icon="avares://TerrariaRPC/Assets/icon.png">
+  <Grid RowDefinitions="Auto,*,Auto" Margin="16">
+    <StackPanel Grid.Row="0" Spacing="8">
+      <TextBlock Name="HeaderText" FontWeight="Bold" FontSize="18" />
+      <TextBlock Text="Use template expressions inside double brackets. Nested {{...}} tokens are resolved before each expression is evaluated."
+                 TextWrapping="Wrap"
+                 Opacity="0.7" />
+    </StackPanel>
+
+    <Grid Grid.Row="1" ColumnDefinitions="180,*" RowDefinitions="Auto,Auto" RowSpacing="12" ColumnSpacing="12" Margin="0,16,0,16">
+      <TextBlock Grid.Row="0" Grid.Column="0" Text="Image:" VerticalAlignment="Top" Margin="0,6,0,0" />
+      <TextBox Name="ImageTemplateBox"
+               Grid.Row="0"
+               Grid.Column="1"
+               AcceptsReturn="True"
+               TextWrapping="Wrap"
+               MinHeight="72" />
+
+      <TextBlock Grid.Row="1" Grid.Column="0" Text="Text:" VerticalAlignment="Top" Margin="0,6,0,0" />
+      <TextBox Name="TextTemplateBox"
+               Grid.Row="1"
+               Grid.Column="1"
+               AcceptsReturn="True"
+               TextWrapping="Wrap"
+               MinHeight="72" />
+    </Grid>
+
+    <Grid Grid.Row="2">
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+        <Button Content="Cancel" Click="OnCancelClick" />
+        <Button Name="SaveButton" Content="Save" Click="OnSaveClick" />
+      </StackPanel>
+    </Grid>
+  </Grid>
+</Window>

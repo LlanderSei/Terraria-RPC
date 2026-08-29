@@ -63,6 +63,12 @@ namespace TerrariaRPC.Core
         ["PlayerDynamicDps"] = state.PlayerDynamicDps,
         ["PlayerDef"] = state.PlayerDef,
         ["PlayerItemHeld"] = state.PlayerItemHeld,
+        ["PlayerHeldItem"] = state.PlayerItemHeld,
+        ["PlayerItemPrefix"] = state.PlayerItemPrefix,
+        ["PlayerHeldItemPrefix"] = state.PlayerItemPrefix,
+        ["PlayerHeldItemWikiName"] = string.IsNullOrEmpty(state.PlayerItemHeld)
+          ? ""
+          : state.PlayerItemHeld.Replace(" ", "_"),
 
         // Boss and events
         ["ActiveBoss"] = state.ActiveBossName,

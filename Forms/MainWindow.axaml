@@ -75,7 +75,20 @@
           </ComboBox>
 
           <StackPanel Name="SmallRotationPanel" Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2" Margin="10,0,0,10" Spacing="6">
-            <CheckBox Name="SmallItemEnabledBox" Content="Holding Item's Icon &amp; Name" IsChecked="True" />
+            <Grid ColumnDefinitions="*,Auto">
+              <CheckBox Name="SmallItemEnabledBox" Content="Holding Item's Icon &amp; Name" IsChecked="True" />
+              <Button Grid.Column="1"
+                Margin="8,0,0,0"
+                Width="28"
+                Height="28"
+                Padding="0"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                ToolTip.Tip="Customize held item status..."
+                Click="OnCustomizeHeldItemStatusClick">
+                <TextBlock Text="✎" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center" />
+              </Button>
+            </Grid>
             <Grid ColumnDefinitions="*,Auto">
               <CheckBox Name="SmallBossEventEnabledBox" Grid.Column="0" Content="Active Boss and Event (Priority: Boss &gt; Events &gt; Non-progressive Events &gt; Peaceful &gt; Weather)" IsCheckedChanged="OnBossEventCheckChanged" />
               <Button Grid.Column="1"

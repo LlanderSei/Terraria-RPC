@@ -102,7 +102,7 @@ namespace TerrariaRPC.Core
 
             if (isInGame)
             {
-                string heldItemWikiName = state.PlayerItemHeld.Replace(" ", "_");
+                string heldItemWikiName = (state.PlayerItemHeld ?? "").Replace(" ", "_");
                 string itemIconUrl = !string.IsNullOrEmpty(heldItemWikiName) ? $"https://terraria.wiki.gg/images/{heldItemWikiName}.png" : "";
 
                 var (url, text) = bossEventManager.GetSmallIconAndText(state, config, iconManager, itemIconUrl);

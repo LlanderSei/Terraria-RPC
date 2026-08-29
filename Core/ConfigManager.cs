@@ -8,6 +8,8 @@ namespace TerrariaRPC.Core
   {
     public const string LegacyProgressiveEventSmallTextTemplate = "Clearing: {{ActiveProgressiveEvent}} ({{ActiveEventHasWaves ? \"Wave {{ActiveEventWaveNum}}: \" : \"\"}}{{ActiveEventHasProgress && !ActiveEventIsAtMaxWave ? \"{{ActiveEventProgression}}%\" : \"\"}}{{ActiveEventIsAtMaxWave && ActiveEventIsAtMaxProgression ? \"{{ActiveEventPoints}} pts\" : \"\"}})";
     public const string LegacyNonProgressiveEventSmallTextTemplate = "{{ActiveNonProgressiveEvent == \"Blood Moon\" ? \"The Blood Moon is rising...\" : ActiveNonProgressiveEvent == \"Solar Eclipse\" ? \"A Solar Eclipse is happening!\" : ActiveNonProgressiveEvent}}";
+    public const string DefaultHeldItemSmallImageUrlTemplate = "{{PlayerHeldItem != \"\" ? \"https://terraria.wiki.gg/images/{{PlayerHeldItemWikiName}}.png\" : \"\"}}";
+    public const string DefaultHeldItemSmallTextTemplate = "{{PlayerHeldItemPrefix != \"\" ? PlayerHeldItemPrefix + \" \" : \"\"}}{{PlayerHeldItem != \"\" ? PlayerHeldItem : \"\"}}";
 
     public string MainMenuLine1 { get; set; } = "{{!IsAttached ? \"Waiting for Terraria...\" :  Screen in \"MainMenu\" ? \"On Main Menu\" : Screen in [\"PlayerSelection\", \"WorldSelection\", \"EnteringWorld\"] ? \"Single Player\" : Screen in [\"MultiplayerBrowser\", \"MultiplayerPlayerSelection\", \"MultiplayerIpSelection\", \"MultiplayerJoining\"] ? \"Multiplayer\" : \"In Menus\"}}";
     public string MainMenuLine2 { get; set; } = "{{!IsAttached ? \"\" : Screen == \"PlayerSelection\" ? \"Choosing a player...\" : Screen == \"WorldSelection\" ? \"Selecting a world...\" : Screen == \"EnteringWorld\" ? \"Entering {{WorldName}}...\" : Screen == \"MultiplayerBrowser\" ? \"Selecting connection type...\" : Screen == \"MultiplayerPlayerSelection\" ? \"Choosing a player...\" : Screen == \"MultiplayerIpSelection\" ? \"Selecting an address to join...\" : Screen == \"MultiplayerJoining\" ? \"Joining world...\" : \"\"}}";
@@ -31,6 +33,8 @@ namespace TerrariaRPC.Core
 
     // Small Image Rotation Checkbox options
     public bool SmallItemEnabled { get; set; } = true;
+    public string HeldItemSmallImageUrlTemplate { get; set; } = DefaultHeldItemSmallImageUrlTemplate;
+    public string HeldItemSmallTextTemplate { get; set; } = DefaultHeldItemSmallTextTemplate;
     public bool SmallBossEventEnabled { get; set; } = false;
     public bool PrioritizeLunarPillarsNearby { get; set; } = true;
     public bool PrioritizeTargetHitBoss { get; set; } = true;
@@ -143,6 +147,18 @@ namespace TerrariaRPC.Core
           string.Equals(config.NonProgressiveEventSmallTextTemplate, RpcConfig.LegacyNonProgressiveEventSmallTextTemplate, StringComparison.Ordinal))
       {
         config.NonProgressiveEventSmallTextTemplate = "{{ActiveNonProgressiveEvent == \"Blood Moon\" ? \"The Blood Moon is rising...\" : ActiveNonProgressiveEvent == \"Solar Eclipse\" ? \"A Solar Eclipse is happening!\" : \"Clearing: {{ActiveNonProgressiveEvent}}\"}}";
+        changed = true;
+      }
+
+      if (string.IsNullOrWhiteSpace(config.HeldItemSmallImageUrlTemplate))
+      {
+        config.HeldItemSmallImageUrlTemplate = RpcConfig.DefaultHeldItemSmallImageUrlTemplate;
+        changed = true;
+      }
+
+      if (string.IsNullOrWhiteSpace(config.HeldItemSmallTextTemplate))
+      {
+        config.HeldItemSmallTextTemplate = RpcConfig.DefaultHeldItemSmallTextTemplate;
         changed = true;
       }
 

@@ -462,8 +462,6 @@ namespace TerrariaRPC.Core
                 _lastEowMaxHp = 0;
               }
 
-              _lastPrimeMaxHp = 0;
-
               // Resolve Golem post-loop.
               if (golemCount > 0)
               {
@@ -829,17 +827,17 @@ namespace TerrariaRPC.Core
         catch { }
       }
 
-        return type switch
-        {
-          4   => "Eye of Cthulhu",
-          50  => "King Slime",
-          13  => "Eater of Worlds",
-          14  => "Eater of Worlds",
-          15  => "Eater of Worlds",
-          266 => "Brain of Cthulhu",
-          267 => "Creeper",
-          222 => "Queen Bee",
-          35  => "Skeletron",
+      return type switch
+      {
+        4 => "Eye of Cthulhu",
+        50 => "King Slime",
+        13 => "Eater of Worlds",
+        14 => "Eater of Worlds",
+        15 => "Eater of Worlds",
+        266 => "Brain of Cthulhu",
+        267 => "Creeper",
+        222 => "Queen Bee",
+        35 => "Skeletron",
         113 => "Wall of Flesh",
         657 => "Queen Slime",
         125 => "Retinazer",
@@ -874,7 +872,7 @@ namespace TerrariaRPC.Core
         565 => "Dark Mage",
         576 => "Ogre",
         491 => "Flying Dutchman",
-        _   => $"Boss ({type})"
+        _ => $"Boss ({type})"
       };
     }
 
@@ -888,7 +886,7 @@ namespace TerrariaRPC.Core
         517 => "ShieldStrengthTowerSolar",
         507 => "ShieldStrengthTowerNebula",
         422 => "ShieldStrengthTowerVortex",
-        _   => ""
+        _ => ""
       };
 
       if (string.IsNullOrEmpty(fieldName)) return 0;
