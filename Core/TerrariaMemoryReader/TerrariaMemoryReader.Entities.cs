@@ -173,7 +173,8 @@ namespace TerrariaRPC.Core
 
               bool UseHitPriority()
               {
-                return config.PrioritizeTargetHitBoss || (!config.PrioritizeNearestBoss && !config.PrioritizeHighestHealthBoss);
+                var bossPriority = config.InGame.BossAndEventPriority.BossPriority;
+                return bossPriority.PrioritizeTargetHitBoss || (!bossPriority.PrioritizeNearestBoss && !bossPriority.PrioritizeHighestHealthBoss);
               }
 
               bool IsBetterBossCandidate(BossCandidate candidate, BossCandidate? current)
@@ -193,12 +194,14 @@ namespace TerrariaRPC.Core
                   return candidate.HitByPlayerSinceTicks > current.HitByPlayerSinceTicks;
                 }
 
-                if (config.PrioritizeNearestBoss && candidate.DistanceSq != current.DistanceSq)
+                var bossPriority = config.InGame.BossAndEventPriority.BossPriority;
+
+                if (bossPriority.PrioritizeNearestBoss && candidate.DistanceSq != current.DistanceSq)
                 {
                   return candidate.DistanceSq < current.DistanceSq;
                 }
 
-                if (config.PrioritizeHighestHealthBoss && candidate.Hp != current.Hp)
+                if (bossPriority.PrioritizeHighestHealthBoss && candidate.Hp != current.Hp)
                 {
                   return candidate.Hp > current.Hp;
                 }
@@ -510,7 +513,7 @@ namespace TerrariaRPC.Core
                 _lastMoonLordMaxHp = 0;
               }
 
-              if (config.PrioritizeLunarPillarsNearby && !string.IsNullOrEmpty(nearestPillarName) && nearestPillarDistanceSq <= pillarPriorityRangeSq)
+              if (config.InGame.BossAndEventPriority.BossPriority.PrioritizeLunarPillarsNearby && !string.IsNullOrEmpty(nearestPillarName) && nearestPillarDistanceSq <= pillarPriorityRangeSq)
               {
                 bestBoss = new BossCandidate
                 {

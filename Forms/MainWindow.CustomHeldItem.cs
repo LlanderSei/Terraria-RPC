@@ -10,6 +10,7 @@ public partial class MainWindow
     var config = ConfigManager.CurrentConfig;
     var dialog = new StatusTemplateDialog(
       "Configure Holding Item's Icon & Name Status",
+      "Holding Item",
       config.HeldItemSmallImageUrlTemplate,
       config.HeldItemSmallTextTemplate);
 

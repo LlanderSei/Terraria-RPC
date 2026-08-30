@@ -1,0 +1,24 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="TerrariaRPC.Forms.ConfirmationDialog"
+        Title="Confirm"
+        Width="420" Height="180"
+        MinWidth="420" MinHeight="180"
+        MaxWidth="420" MaxHeight="180"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Icon="avares://TerrariaRPC/Assets/icon.png">
+  <Grid RowDefinitions="Auto,*,Auto" Margin="16">
+    <StackPanel Grid.Row="0" Spacing="8">
+      <TextBlock Name="HeaderText" FontWeight="Bold" FontSize="18" />
+      <TextBlock Name="BodyText" TextWrapping="Wrap" Opacity="0.7" />
+    </StackPanel>
+
+    <Grid Grid.Row="2">
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+        <Button Content="Cancel" Click="OnCancelClick" />
+        <Button Name="ConfirmButton" Content="Delete" Click="OnConfirmClick" />
+      </StackPanel>
+    </Grid>
+  </Grid>
+</Window>

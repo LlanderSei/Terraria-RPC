@@ -68,63 +68,36 @@
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Line 2:" VerticalAlignment="Center" Margin="0,0,0,10" />
           <TextBox Name="Line2Box" Grid.Row="1" Grid.Column="1" Margin="0,0,0,10" TextChanged="OnSingleLineTextChanged" PastingFromClipboard="OnSingleLinePastingFromClipboard" />
 
-          <TextBlock Grid.Row="2" Grid.Column="0" Text="Small Image &amp; Text Style:" VerticalAlignment="Center" Margin="0,0,0,10" />
-          <ComboBox Name="SmallImageStyleBox" Grid.Row="2" Grid.Column="1" HorizontalAlignment="Stretch" Margin="0,0,0,10" SelectionChanged="OnSmallImageStyleChanged">
-            <ComboBoxItem Content="Customize icon/text rotation based on checkboxes below" />
-            <ComboBoxItem Content="Custom" />
-          </ComboBox>
+          <Grid Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" ColumnDefinitions="180,*,Auto" Margin="0,0,0,10">
+            <TextBlock Grid.Column="0" Text="Small Image &amp; Text Style:" VerticalAlignment="Center" Margin="0,0,8,0" />
+            <ComboBox Name="SmallImageStyleBox" Grid.Column="1" HorizontalAlignment="Stretch" Margin="0,0,8,0" SelectionChanged="OnSmallImageStyleChanged">
+              <ComboBoxItem Content="Rotatable Lists" />
+              <ComboBoxItem Content="Static Status" />
+            </ComboBox>
+            <Button Grid.Column="2"
+              Width="28"
+              Height="28"
+              Padding="0"
+              HorizontalAlignment="Left"
+              VerticalAlignment="Center"
+              ToolTip.Tip="Boss and Event priority options..."
+              Click="OnBossEventPriorityClick">
+              <TextBlock Text="&#x2699;" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Button>
+          </Grid>
 
-          <StackPanel Name="SmallRotationPanel" Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2" Margin="10,0,0,10" Spacing="6">
-            <Grid ColumnDefinitions="*,Auto">
-              <CheckBox Name="SmallItemEnabledBox" Content="Holding Item's Icon &amp; Name" IsChecked="True" />
-              <Button Grid.Column="1"
-                Margin="8,0,0,0"
-                Width="28"
-                Height="28"
-                Padding="0"
-                HorizontalAlignment="Center"
-                VerticalAlignment="Center"
-                ToolTip.Tip="Customize held item status..."
-                Click="OnCustomizeHeldItemStatusClick">
-                <TextBlock Text="✎" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center" />
-              </Button>
+
+          <StackPanel Name="SmallStatusListPane" Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2" Margin="10,0,0,10" Spacing="8">
+            <Grid ColumnDefinitions="44,86,*,Auto" Margin="0,0,0,4">
+              <TextBlock Grid.Column="0" Text="#" FontWeight="SemiBold" Opacity="0.75" HorizontalAlignment="Center" />
+              <TextBlock Grid.Column="1" Text="Enabled" FontWeight="SemiBold" Opacity="0.75" Margin="6,0,0,0" />
+              <TextBlock Grid.Column="2" Text="Status Name" FontWeight="SemiBold" Opacity="0.75" />
+              <TextBlock Grid.Column="3" Text="Actions" FontWeight="SemiBold" Opacity="0.75" HorizontalAlignment="Right" Margin="0,0,6,0" />
             </Grid>
-            <Grid ColumnDefinitions="*,Auto">
-              <CheckBox Name="SmallBossEventEnabledBox" Grid.Column="0" Content="Active Boss and Event (Priority: Boss &gt; Events &gt; Non-progressive Events &gt; Peaceful &gt; Weather)" IsCheckedChanged="OnBossEventCheckChanged" />
-              <Button Grid.Column="1"
-                Margin="8,0,0,0"
-                Width="28"
-                Height="28"
-                Padding="0"
-                HorizontalAlignment="Center"
-                VerticalAlignment="Center"
-                ToolTip.Tip="Customize status messages..."
-                Click="OnCustomizeSmallDetailsClick">
-                <TextBlock Text="✎" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center" />
-              </Button>
-            </Grid>
-
-            <StackPanel Name="BossEventSubPanel" Margin="20,4,0,4" Spacing="6" IsVisible="False">
-              <Grid ColumnDefinitions="*,*">
-                <StackPanel Grid.Column="0" Spacing="4">
-                  <TextBlock Text="Excludes (Skip category):" FontWeight="SemiBold" FontSize="12" Margin="0,0,0,2" />
-                  <CheckBox Name="ExcludeBossBox" Content="Exclude Boss" />
-                  <CheckBox Name="ExcludeEventsBox" Content="Exclude Events (Goblin Army, etc.)" IsCheckedChanged="OnExcludeEventsChanged" />
-                  <CheckBox Name="ExcludeNonProgressiveBox" Content="Exclude Non-progressive Events" IsCheckedChanged="OnExcludeNonProgressiveChanged" />
-                  <CheckBox Name="ExcludePeacefulBox" Content="Exclude Peaceful Events" IsCheckedChanged="OnExcludePeacefulChanged" />
-                  <CheckBox Name="ExcludeWeatherBox" Content="Exclude Weather" IsCheckedChanged="OnExcludeWeatherChanged" />
-                </StackPanel>
-
-                <StackPanel Grid.Column="1" Spacing="4">
-                  <TextBlock Text="Includes (Add to rotation cycle):" FontWeight="SemiBold" FontSize="12" Margin="0,0,0,2" />
-                  <TextBlock Text="(Boss is top priority by default)" FontSize="11" Opacity="0.6" Margin="0,2,0,4" />
-                  <CheckBox Name="IncludeEventsBox" Content="Include Events to the rotation" IsCheckedChanged="OnIncludeEventsChanged" />
-                  <CheckBox Name="IncludeNonProgressiveBox" Content="Include Non-progressive Events to the rotation" IsCheckedChanged="OnIncludeNonProgressiveChanged" />
-                  <CheckBox Name="IncludePeacefulBox" Content="Include Peaceful Events to the rotation" IsCheckedChanged="OnIncludePeacefulChanged" />
-                  <CheckBox Name="IncludeWeatherBox" Content="Include Weather to the rotation" IsCheckedChanged="OnIncludeWeatherChanged" />
-                </StackPanel>
-              </Grid>
-            </StackPanel>
+            <ScrollViewer MaxHeight="220">
+              <StackPanel Name="SmallStatusRowsPanel" Spacing="6" />
+            </ScrollViewer>
+            <Button Name="AddSmallStatusButton" Content="Add New Status" HorizontalAlignment="Stretch" Click="OnAddSmallStatusClick" />
           </StackPanel>
 
           <TextBlock Name="SmallImageCustomUrlLabel" Grid.Row="4" Grid.Column="0" Text="Image:" VerticalAlignment="Center" Margin="20,0,0,10" IsVisible="False" />

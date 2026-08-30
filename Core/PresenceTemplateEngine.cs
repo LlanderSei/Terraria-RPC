@@ -7,6 +7,9 @@ namespace TerrariaRPC.Core
     private static readonly Regex ExpressionPattern = new(@"\{\{([^{}]+)\}\}", RegexOptions.Compiled);
 
     public static string Format(string template, TerrariaGameState state)
+      => Format(template, state, null);
+
+    public static string Format(string template, TerrariaGameState state, IconManager? iconManager)
     {
       if (string.IsNullOrWhiteSpace(template))
         return "";
@@ -18,7 +21,7 @@ namespace TerrariaRPC.Core
         string next = ExpressionPattern.Replace(current, match =>
         {
           string expression = match.Groups[1].Value;
-          return TemplateExpressionEvaluator.Evaluate(expression, state);
+          return TemplateExpressionEvaluator.Evaluate(expression, state, iconManager);
         });
 
         if (next == current)

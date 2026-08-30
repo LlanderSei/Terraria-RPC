@@ -9,16 +9,23 @@ public partial class StatusTemplateDialog : Window
 {
   public bool WasSaved { get; private set; }
 
+  public string StatusName
+  {
+    get => this.FindControl<TextBox>("StatusNameBox")?.Text ?? "";
+    private set
+    {
+      var box = this.FindControl<TextBox>("StatusNameBox");
+      box?.Text = value;
+    }
+  }
+
   public string ImageTemplate
   {
     get => this.FindControl<TextBox>("ImageTemplateBox")?.Text ?? "";
     private set
     {
       var box = this.FindControl<TextBox>("ImageTemplateBox");
-      if (box != null)
-      {
-        box.Text = value;
-      }
+      box?.Text = value;
     }
   }
 
@@ -28,29 +35,34 @@ public partial class StatusTemplateDialog : Window
     private set
     {
       var box = this.FindControl<TextBox>("TextTemplateBox");
-      if (box != null)
-      {
-        box.Text = value;
-      }
+      box?.Text = value;
     }
   }
 
   public StatusTemplateDialog()
   {
     InitializeComponent();
-    InitializeDialog("Configure Status", "", "");
+    InitializeDialog("Configure Status", "", "", "");
   }
 
-  public StatusTemplateDialog(string title, string imageTemplate, string textTemplate)
+  public StatusTemplateDialog(string statusName, string imageTemplate, string textTemplate)
   {
     InitializeComponent();
-    InitializeDialog(title, imageTemplate, textTemplate);
+    string normalizedStatusName = string.IsNullOrWhiteSpace(statusName) ? "Status" : statusName.Trim();
+    InitializeDialog($"Configure {normalizedStatusName} Status", normalizedStatusName, imageTemplate, textTemplate);
   }
 
-  private void InitializeDialog(string title, string imageTemplate, string textTemplate)
+  public StatusTemplateDialog(string title, string statusName, string imageTemplate, string textTemplate)
+  {
+    InitializeComponent();
+    InitializeDialog(title, statusName, imageTemplate, textTemplate);
+  }
+
+  private void InitializeDialog(string title, string statusName, string imageTemplate, string textTemplate)
   {
     Title = title;
     this.FindControl<TextBlock>("HeaderText")!.Text = title;
+    StatusName = statusName;
     ImageTemplate = imageTemplate;
     TextTemplate = textTemplate;
   }

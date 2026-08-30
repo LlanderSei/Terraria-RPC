@@ -10,6 +10,7 @@ using Avalonia.Interactivity;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Media;
+using Avalonia.Layout;
 using TerrariaRPC.Core;
 
 namespace TerrariaRPC.Forms;
@@ -28,6 +29,7 @@ public partial class MainWindow : Window
   private bool _isAppShutdownRequested = false;
   private bool _isNormalizingSingleLineText = false;
   private TextBox? _expandedMainMenuField;
+  private bool _isRefreshingSmallStatusRows = false;
 
   public MainWindow()
   {
@@ -51,29 +53,12 @@ public partial class MainWindow : Window
 
       var inGameLine1Box = this.FindControl<TextBox>("Line1Box");
       var inGameLine2Box = this.FindControl<TextBox>("Line2Box");
-      if (inGameLine1Box != null) inGameLine1Box.Text = config.InGameLine1;
-      if (inGameLine2Box != null) inGameLine2Box.Text = config.InGameLine2;
+      inGameLine1Box?.Text = config.InGameLine1;
+      inGameLine2Box?.Text = config.InGameLine2;
 
       this.FindControl<ComboBox>("SmallImageStyleBox")!.SelectedIndex = config.SmallImageStyleIndex;
       this.FindControl<TextBox>("SmallImageCustomUrlBox")!.Text = config.SmallImageCustomUrl;
       this.FindControl<TextBox>("SmallImageCustomTextBox")!.Text = config.SmallImageCustomText;
-
-      // Small Rotation checkboxes
-      this.FindControl<CheckBox>("SmallItemEnabledBox")!.IsChecked = config.SmallItemEnabled;
-      this.FindControl<CheckBox>("SmallBossEventEnabledBox")!.IsChecked = config.SmallBossEventEnabled;
-
-      // Excludes
-      this.FindControl<CheckBox>("ExcludeBossBox")!.IsChecked = config.ExcludeBoss;
-      this.FindControl<CheckBox>("ExcludeEventsBox")!.IsChecked = config.ExcludeEvents;
-      this.FindControl<CheckBox>("ExcludeNonProgressiveBox")!.IsChecked = config.ExcludeNonProgressiveEvents;
-      this.FindControl<CheckBox>("ExcludePeacefulBox")!.IsChecked = config.ExcludePeacefulEvents;
-      this.FindControl<CheckBox>("ExcludeWeatherBox")!.IsChecked = config.ExcludeWeather;
-
-      // Includes
-      this.FindControl<CheckBox>("IncludeEventsBox")!.IsChecked = config.IncludeEvents;
-      this.FindControl<CheckBox>("IncludeNonProgressiveBox")!.IsChecked = config.IncludeNonProgressiveEvents;
-      this.FindControl<CheckBox>("IncludePeacefulBox")!.IsChecked = config.IncludePeacefulEvents;
-      this.FindControl<CheckBox>("IncludeWeatherBox")!.IsChecked = config.IncludeWeather;
 
       this.FindControl<ComboBox>("LargeImageStyleBox")!.SelectedIndex = config.LargeImageStyleIndex;
       this.FindControl<TextBox>("LargeImageCustomUrlBox")!.Text = config.LargeImageCustomUrl;
@@ -84,6 +69,7 @@ public partial class MainWindow : Window
       _isUpdatingCheckboxes = false;
       SetActivePane(ConfigPane.MainMenu);
       UpdateVisibility();
+      RefreshSmallStatusRows();
     }
   }
 
@@ -94,8 +80,8 @@ public partial class MainWindow : Window
 
     var mainMenuPanel = this.FindControl<Panel>("MainMenuPanel");
     var inGamePanel = this.FindControl<Panel>("InGamePanel");
-    if (mainMenuPanel != null) mainMenuPanel.IsVisible = pane == ConfigPane.MainMenu;
-    if (inGamePanel != null) inGamePanel.IsVisible = pane == ConfigPane.InGame;
+    mainMenuPanel?.IsVisible = pane == ConfigPane.MainMenu;
+    inGamePanel?.IsVisible = pane == ConfigPane.InGame;
 
     var mainMenuButton = this.FindControl<Button>("MainMenuPaneButton");
     var inGameButton = this.FindControl<Button>("InGamePaneButton");
@@ -145,25 +131,18 @@ public partial class MainWindow : Window
     bool isSmallRotation = smallStyleBox != null && smallStyleBox.SelectedIndex == 0;
     bool isSmallCustom = smallStyleBox != null && smallStyleBox.SelectedIndex == 1;
 
-    var smallRotationPanel = this.FindControl<StackPanel>("SmallRotationPanel");
-    if (smallRotationPanel != null) smallRotationPanel.IsVisible = isSmallRotation;
-
-    var bossEventCheck = this.FindControl<CheckBox>("SmallBossEventEnabledBox");
-    var bossEventSubPanel = this.FindControl<StackPanel>("BossEventSubPanel");
-    if (bossEventSubPanel != null)
-    {
-      bossEventSubPanel.IsVisible = isSmallRotation && (bossEventCheck?.IsChecked ?? false);
-    }
+    var smallStatusListPane = this.FindControl<StackPanel>("SmallStatusListPane");
+    smallStatusListPane?.IsVisible = isSmallRotation;
 
     var smallUrlLabel = this.FindControl<TextBlock>("SmallImageCustomUrlLabel");
     var smallUrlBox = this.FindControl<TextBox>("SmallImageCustomUrlBox");
     var smallTextLabel = this.FindControl<TextBlock>("SmallImageCustomTextLabel");
     var smallTextBox = this.FindControl<TextBox>("SmallImageCustomTextBox");
 
-    if (smallUrlLabel != null) smallUrlLabel.IsVisible = isSmallCustom;
-    if (smallUrlBox != null) smallUrlBox.IsVisible = isSmallCustom;
-    if (smallTextLabel != null) smallTextLabel.IsVisible = isSmallCustom;
-    if (smallTextBox != null) smallTextBox.IsVisible = isSmallCustom;
+    smallUrlLabel?.IsVisible = isSmallCustom;
+    smallUrlBox?.IsVisible = isSmallCustom;
+    smallTextLabel?.IsVisible = isSmallCustom;
+    smallTextBox?.IsVisible = isSmallCustom;
 
     var largeStyleBox = this.FindControl<ComboBox>("LargeImageStyleBox");
     bool isLargeCustom = largeStyleBox != null && largeStyleBox.SelectedIndex == 1;
@@ -173,20 +152,27 @@ public partial class MainWindow : Window
     var largeTextLabel = this.FindControl<TextBlock>("LargeImageCustomTextLabel");
     var largeTextBox = this.FindControl<TextBox>("LargeImageCustomTextBox");
 
-    if (largeUrlLabel != null) largeUrlLabel.IsVisible = isLargeCustom;
-    if (largeUrlBox != null) largeUrlBox.IsVisible = isLargeCustom;
-    if (largeTextLabel != null) largeTextLabel.IsVisible = isLargeCustom;
-    if (largeTextBox != null) largeTextBox.IsVisible = isLargeCustom;
+    largeUrlLabel?.IsVisible = isLargeCustom;
+    largeUrlBox?.IsVisible = isLargeCustom;
+    largeTextLabel?.IsVisible = isLargeCustom;
+    largeTextBox?.IsVisible = isLargeCustom;
   }
 
   public void OnSmallImageStyleChanged(object sender, SelectionChangedEventArgs e)
   {
     UpdateVisibility();
+    RefreshSmallStatusRows();
   }
 
   public void OnLargeImageStyleChanged(object sender, SelectionChangedEventArgs e)
   {
     UpdateVisibility();
+  }
+
+  public async void OnBossEventPriorityClick(object? sender, RoutedEventArgs e)
+  {
+    var dialog = new SmallDetailsTemplatesDialog();
+    await dialog.ShowDialog(this);
   }
 
   public void OnSingleLineTextChanged(object sender, TextChangedEventArgs e)
@@ -302,109 +288,6 @@ public partial class MainWindow : Window
     }
   }
 
-  public void OnBossEventCheckChanged(object sender, RoutedEventArgs e)
-  {
-    UpdateVisibility();
-  }
-
-  // ── Mutual Exclusivity Handlers (Exclude vs Include) ─────────────────────
-
-  public void OnExcludeEventsChanged(object sender, RoutedEventArgs e)
-  {
-    if (_isUpdatingCheckboxes) return;
-    var exc = sender as CheckBox;
-    if (exc?.IsChecked == true)
-    {
-      _isUpdatingCheckboxes = true;
-      this.FindControl<CheckBox>("IncludeEventsBox")!.IsChecked = false;
-      _isUpdatingCheckboxes = false;
-    }
-  }
-
-  public void OnIncludeEventsChanged(object sender, RoutedEventArgs e)
-  {
-    if (_isUpdatingCheckboxes) return;
-    var inc = sender as CheckBox;
-    if (inc?.IsChecked == true)
-    {
-      _isUpdatingCheckboxes = true;
-      this.FindControl<CheckBox>("ExcludeEventsBox")!.IsChecked = false;
-      _isUpdatingCheckboxes = false;
-    }
-  }
-
-  public void OnExcludeNonProgressiveChanged(object sender, RoutedEventArgs e)
-  {
-    if (_isUpdatingCheckboxes) return;
-    var exc = sender as CheckBox;
-    if (exc?.IsChecked == true)
-    {
-      _isUpdatingCheckboxes = true;
-      this.FindControl<CheckBox>("IncludeNonProgressiveBox")!.IsChecked = false;
-      _isUpdatingCheckboxes = false;
-    }
-  }
-
-  public void OnIncludeNonProgressiveChanged(object sender, RoutedEventArgs e)
-  {
-    if (_isUpdatingCheckboxes) return;
-    var inc = sender as CheckBox;
-    if (inc?.IsChecked == true)
-    {
-      _isUpdatingCheckboxes = true;
-      this.FindControl<CheckBox>("ExcludeNonProgressiveBox")!.IsChecked = false;
-      _isUpdatingCheckboxes = false;
-    }
-  }
-
-  public void OnExcludePeacefulChanged(object sender, RoutedEventArgs e)
-  {
-    if (_isUpdatingCheckboxes) return;
-    var exc = sender as CheckBox;
-    if (exc?.IsChecked == true)
-    {
-      _isUpdatingCheckboxes = true;
-      this.FindControl<CheckBox>("IncludePeacefulBox")!.IsChecked = false;
-      _isUpdatingCheckboxes = false;
-    }
-  }
-
-  public void OnIncludePeacefulChanged(object sender, RoutedEventArgs e)
-  {
-    if (_isUpdatingCheckboxes) return;
-    var inc = sender as CheckBox;
-    if (inc?.IsChecked == true)
-    {
-      _isUpdatingCheckboxes = true;
-      this.FindControl<CheckBox>("ExcludePeacefulBox")!.IsChecked = false;
-      _isUpdatingCheckboxes = false;
-    }
-  }
-
-  public void OnExcludeWeatherChanged(object sender, RoutedEventArgs e)
-  {
-    if (_isUpdatingCheckboxes) return;
-    var exc = sender as CheckBox;
-    if (exc?.IsChecked == true)
-    {
-      _isUpdatingCheckboxes = true;
-      this.FindControl<CheckBox>("IncludeWeatherBox")!.IsChecked = false;
-      _isUpdatingCheckboxes = false;
-    }
-  }
-
-  public void OnIncludeWeatherChanged(object sender, RoutedEventArgs e)
-  {
-    if (_isUpdatingCheckboxes) return;
-    var inc = sender as CheckBox;
-    if (inc?.IsChecked == true)
-    {
-      _isUpdatingCheckboxes = true;
-      this.FindControl<CheckBox>("ExcludeWeatherBox")!.IsChecked = false;
-      _isUpdatingCheckboxes = false;
-    }
-  }
-
   public async void OnVariablesClick(object sender, RoutedEventArgs e)
   {
     var dialog = new VariablesDialog();
@@ -419,10 +302,7 @@ public partial class MainWindow : Window
     _isSaving = true;
 
     var saveBtn = this.FindControl<Button>("SaveButton");
-    if (saveBtn != null)
-    {
-      saveBtn.Content = "Saving Config...";
-    }
+    saveBtn?.Content = "Saving Config...";
 
     var config = ConfigManager.CurrentConfig ?? new RpcConfig();
 
@@ -439,22 +319,6 @@ public partial class MainWindow : Window
     config.SmallImageStyleIndex = this.FindControl<ComboBox>("SmallImageStyleBox")!.SelectedIndex;
     config.SmallImageCustomUrl = this.FindControl<TextBox>("SmallImageCustomUrlBox")!.Text ?? "";
     config.SmallImageCustomText = this.FindControl<TextBox>("SmallImageCustomTextBox")!.Text ?? "";
-
-    // Small Rotation Checkboxes
-    config.SmallItemEnabled = this.FindControl<CheckBox>("SmallItemEnabledBox")!.IsChecked ?? true;
-    config.SmallBossEventEnabled = this.FindControl<CheckBox>("SmallBossEventEnabledBox")!.IsChecked ?? false;
-
-    config.ExcludeBoss = this.FindControl<CheckBox>("ExcludeBossBox")!.IsChecked ?? false;
-    config.ExcludeEvents = this.FindControl<CheckBox>("ExcludeEventsBox")!.IsChecked ?? false;
-    config.ExcludeNonProgressiveEvents = this.FindControl<CheckBox>("ExcludeNonProgressiveBox")!.IsChecked ?? false;
-    config.ExcludePeacefulEvents = this.FindControl<CheckBox>("ExcludePeacefulBox")!.IsChecked ?? false;
-    config.ExcludeWeather = this.FindControl<CheckBox>("ExcludeWeatherBox")!.IsChecked ?? false;
-
-    config.IncludeEvents = this.FindControl<CheckBox>("IncludeEventsBox")!.IsChecked ?? false;
-    config.IncludeNonProgressiveEvents = this.FindControl<CheckBox>("IncludeNonProgressiveBox")!.IsChecked ?? false;
-    config.IncludePeacefulEvents = this.FindControl<CheckBox>("IncludePeacefulBox")!.IsChecked ?? false;
-    config.IncludeWeather = this.FindControl<CheckBox>("IncludeWeatherBox")!.IsChecked ?? false;
-
     config.LargeImageStyleIndex = this.FindControl<ComboBox>("LargeImageStyleBox")!.SelectedIndex;
     config.LargeImageCustomUrl = this.FindControl<TextBox>("LargeImageCustomUrlBox")!.Text ?? "";
     config.LargeImageCustomText = this.FindControl<TextBox>("LargeImageCustomTextBox")!.Text ?? "";
@@ -463,19 +327,255 @@ public partial class MainWindow : Window
 
     ConfigManager.SaveConfig();
 
-    if (saveBtn != null)
-    {
-      saveBtn.Content = "Configuration Saved!";
-    }
+    saveBtn?.Content = "Configuration Saved!";
 
     await System.Threading.Tasks.Task.Delay(2000);
 
-    if (saveBtn != null)
-    {
-      saveBtn.Content = "Save Configuration";
-    }
+    saveBtn?.Content = "Save Configuration";
 
     _isSaving = false;
+  }
+
+  private void RefreshSmallStatusRows()
+  {
+    if (_isRefreshingSmallStatusRows)
+    {
+      return;
+    }
+
+    _isRefreshingSmallStatusRows = true;
+
+    var rowsPanel = this.FindControl<StackPanel>("SmallStatusRowsPanel");
+    if (rowsPanel != null)
+    {
+      rowsPanel.Children.Clear();
+
+      var templates = ConfigManager.CurrentConfig.InGame.SmallDetails.Templates;
+      for (int i = 0; i < templates.Count; i++)
+      {
+        rowsPanel.Children.Add(BuildSmallStatusRow(i, templates[i]));
+      }
+    }
+
+    _isRefreshingSmallStatusRows = false;
+  }
+
+  private Control BuildSmallStatusRow(int index, StatusTemplateEntry entry)
+  {
+    var row = new Grid
+    {
+      ColumnDefinitions = new ColumnDefinitions("44,86,*,Auto"),
+      Margin = new Thickness(0)
+    };
+
+    var moveStack = new StackPanel
+    {
+      Orientation = Orientation.Horizontal,
+      Spacing = 2,
+      VerticalAlignment = VerticalAlignment.Center,
+      Margin = new Thickness(0, 0, 8, 0)
+    };
+
+    var upButton = new Button
+    {
+      Content = " ↑ ",
+      Padding = new Thickness(0),
+      Width = 22,
+      Height = 22,
+      Tag = index,
+      IsEnabled = index > 0
+    };
+    upButton.Click += OnMoveSmallStatusUpClick;
+    ToolTip.SetTip(upButton, "Move Up");
+
+    var downButton = new Button
+    {
+      Content = " ↓ ",
+      Padding = new Thickness(0),
+      Width = 22,
+      Height = 22,
+      Tag = index,
+      IsEnabled = index < ConfigManager.CurrentConfig.InGame.SmallDetails.Templates.Count - 1
+    };
+    downButton.Click += OnMoveSmallStatusDownClick;
+    ToolTip.SetTip(downButton, "Move Down");
+
+    moveStack.Children.Add(upButton);
+    moveStack.Children.Add(downButton);
+    Grid.SetColumn(moveStack, 0);
+    row.Children.Add(moveStack);
+
+    var enabledBox = new CheckBox
+    {
+      IsChecked = entry.Enabled,
+      VerticalAlignment = VerticalAlignment.Center,
+      Margin = new Thickness(6, 0, 0, 0),
+      Tag = entry
+    };
+    enabledBox.IsCheckedChanged += OnSmallStatusEnabledChanged;
+    Grid.SetColumn(enabledBox, 1);
+    row.Children.Add(enabledBox);
+
+    var nameText = new TextBlock
+    {
+      Text = string.IsNullOrWhiteSpace(entry.StatusName) ? "(Unnamed status)" : entry.StatusName,
+      VerticalAlignment = VerticalAlignment.Center,
+      TextWrapping = TextWrapping.NoWrap
+    };
+    Grid.SetColumn(nameText, 2);
+    row.Children.Add(nameText);
+
+    var actionStack = new StackPanel
+    {
+      Orientation = Orientation.Horizontal,
+      Spacing = 6,
+      HorizontalAlignment = HorizontalAlignment.Right
+    };
+
+    var editButton = new Button
+    {
+      Content = "Edit",
+      Tag = entry
+    };
+    editButton.Click += OnEditSmallStatusClick;
+
+    var deleteButton = new Button
+    {
+      Content = "Delete",
+      Tag = entry
+    };
+    deleteButton.Click += OnDeleteSmallStatusClick;
+
+    actionStack.Children.Add(editButton);
+    actionStack.Children.Add(deleteButton);
+    Grid.SetColumn(actionStack, 3);
+    row.Children.Add(actionStack);
+
+    return row;
+  }
+
+  public void OnAddSmallStatusClick(object? sender, RoutedEventArgs e)
+  {
+    _ = OpenSmallStatusEditorAsync(null);
+  }
+
+  private async System.Threading.Tasks.Task OpenSmallStatusEditorAsync(StatusTemplateEntry? entry)
+  {
+    var templates = ConfigManager.CurrentConfig.InGame.SmallDetails.Templates;
+    var working = entry != null
+      ? new StatusTemplateEntry
+      {
+        StatusName = entry.StatusName,
+        Image = entry.Image,
+        Text = entry.Text,
+        Enabled = entry.Enabled
+      }
+      : new StatusTemplateEntry
+      {
+        StatusName = "New Status",
+        Enabled = true
+      };
+
+    var dialog = entry == null
+      ? new StatusTemplateDialog("Add Status", working.StatusName, working.Image, working.Text)
+      : new StatusTemplateDialog(working.StatusName, working.Image, working.Text);
+
+    await dialog.ShowDialog(this);
+
+    if (!dialog.WasSaved)
+    {
+      return;
+    }
+
+    working.StatusName = dialog.StatusName;
+    working.Image = dialog.ImageTemplate;
+    working.Text = dialog.TextTemplate;
+
+    if (entry == null)
+    {
+      templates.Add(working);
+    }
+    else
+    {
+      int index = templates.IndexOf(entry);
+      if (index >= 0)
+      {
+        templates[index] = working;
+      }
+    }
+
+    RefreshSmallStatusRows();
+  }
+
+  public async void OnEditSmallStatusClick(object? sender, RoutedEventArgs e)
+  {
+    if (sender is Button button && button.Tag is StatusTemplateEntry entry)
+    {
+      await OpenSmallStatusEditorAsync(entry);
+    }
+  }
+
+  public void OnDeleteSmallStatusClick(object? sender, RoutedEventArgs e)
+  {
+    if (sender is Button button && button.Tag is StatusTemplateEntry entry)
+    {
+      _ = ConfirmDeleteSmallStatusAsync(entry);
+    }
+  }
+
+  private async System.Threading.Tasks.Task ConfirmDeleteSmallStatusAsync(StatusTemplateEntry entry)
+  {
+    string statusName = string.IsNullOrWhiteSpace(entry.StatusName) ? "this status" : $"\"{entry.StatusName}\"";
+    var dialog = new ConfirmationDialog(
+      $"Delete {statusName}?",
+      "This will remove the status from the rotation list.");
+
+    bool confirmed = await dialog.ShowDialog<bool>(this);
+    if (!confirmed)
+    {
+      return;
+    }
+
+    ConfigManager.CurrentConfig.InGame.SmallDetails.Templates.Remove(entry);
+    RefreshSmallStatusRows();
+  }
+
+  public void OnSmallStatusEnabledChanged(object? sender, RoutedEventArgs e)
+  {
+    if (sender is CheckBox checkBox && checkBox.Tag is StatusTemplateEntry entry)
+    {
+      entry.Enabled = checkBox.IsChecked == true;
+    }
+  }
+
+  public void OnMoveSmallStatusUpClick(object? sender, RoutedEventArgs e)
+  {
+    if (sender is Button button && button.Tag is int index)
+    {
+      var templates = ConfigManager.CurrentConfig.InGame.SmallDetails.Templates;
+      if (index <= 0 || index >= templates.Count)
+      {
+        return;
+      }
+
+      (templates[index - 1], templates[index]) = (templates[index], templates[index - 1]);
+      RefreshSmallStatusRows();
+    }
+  }
+
+  public void OnMoveSmallStatusDownClick(object? sender, RoutedEventArgs e)
+  {
+    if (sender is Button button && button.Tag is int index)
+    {
+      var templates = ConfigManager.CurrentConfig.InGame.SmallDetails.Templates;
+      if (index < 0 || index >= templates.Count - 1)
+      {
+        return;
+      }
+
+      (templates[index], templates[index + 1]) = (templates[index + 1], templates[index]);
+      RefreshSmallStatusRows();
+    }
   }
 
   protected override void OnClosing(WindowClosingEventArgs e)
@@ -551,3 +651,4 @@ public partial class MainWindow : Window
     });
   }
 }
+

@@ -8,14 +8,14 @@ namespace TerrariaRPC.Core
 {
   internal static class TemplateExpressionEvaluator
   {
-    public static string Evaluate(string expression, TerrariaGameState state)
+    public static string Evaluate(string expression, TerrariaGameState state, IconManager? iconManager = null)
     {
       if (string.IsNullOrWhiteSpace(expression))
         return "";
 
       try
       {
-        var parser = new Parser(expression, BuildContext(state));
+        var parser = new Parser(expression, BuildContext(state, iconManager), iconManager);
         object? value = parser.ParseExpression();
         return FormatValue(value);
       }
@@ -25,7 +25,7 @@ namespace TerrariaRPC.Core
       }
     }
 
-    private static Dictionary<string, object?> BuildContext(TerrariaGameState state)
+    private static Dictionary<string, object?> BuildContext(TerrariaGameState state, IconManager? iconManager)
     {
       return new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
       {
@@ -166,12 +166,14 @@ namespace TerrariaRPC.Core
     {
       private readonly List<Token> _tokens;
       private readonly Dictionary<string, object?> _context;
+      private readonly IconManager? _iconManager;
       private int _position;
 
-      public Parser(string expression, Dictionary<string, object?> context)
+      public Parser(string expression, Dictionary<string, object?> context, IconManager? iconManager = null)
       {
         _tokens = Tokenize(expression);
         _context = context;
+        _iconManager = iconManager;
       }
 
       public object? ParseExpression() => ParseConditional();
@@ -345,7 +347,28 @@ namespace TerrariaRPC.Core
         if (Match(TokenType.Null))
           return null;
         if (Match(TokenType.Identifier))
+        {
+          if (Match(TokenType.OpenParen))
+          {
+            var args = new List<object?>();
+            if (!Match(TokenType.CloseParen))
+            {
+              while (true)
+              {
+                args.Add(ParseExpression());
+                if (Match(TokenType.Comma))
+                  continue;
+
+                Consume(TokenType.CloseParen);
+                break;
+              }
+            }
+
+            return ResolveFunction(token.Text, args);
+          }
+
           return ResolveIdentifier(token.Text);
+        }
         if (Match(TokenType.OpenParen))
         {
           object? value = ParseExpression();
@@ -360,6 +383,18 @@ namespace TerrariaRPC.Core
       {
         if (_context.TryGetValue(name, out var value))
           return value;
+        return "";
+      }
+
+      private object? ResolveFunction(string name, List<object?> args)
+      {
+        if (string.Equals(name, "FetchConfigValue", StringComparison.OrdinalIgnoreCase))
+        {
+          string source = args.Count > 0 ? FormatValue(args[0]) : "";
+          string path = args.Count > 1 ? FormatValue(args[1]) : "";
+          return _iconManager?.FetchConfigValue(source, path) ?? "";
+        }
+
         return "";
       }
 

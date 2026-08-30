@@ -16,6 +16,7 @@ namespace TerrariaRPC
     private const int MaxMisses = 3;
     private static readonly TimeSpan ReaderInterval = TimeSpan.FromSeconds(1);
     private static readonly TimeSpan PresenceInterval = TimeSpan.FromSeconds(5);
+    public static TerrariaMemoryReader? SharedMemoryReader { get; private set; }
 
     [STAThread]
     public static void Main(string[] args)
@@ -73,6 +74,7 @@ namespace TerrariaRPC
 
       var cancellationSource = new CancellationTokenSource();
       var memoryReader = new TerrariaMemoryReader();
+      SharedMemoryReader = memoryReader;
       Task readerTask = ReaderLoopAsync(memoryReader, cancellationSource.Token);
       Task presenceTask = PresenceLoopAsync(noGui, memoryReader, cancellationSource);
 
@@ -101,8 +103,12 @@ namespace TerrariaRPC
 
         SingleInstance.Release();
         Logger.Info("Application exited.");
+        SharedMemoryReader = null;
       }
     }
+
+    public static TerrariaGameState GetLiveStateSnapshot()
+      => SharedMemoryReader?.GetStateSnapshot() ?? new TerrariaGameState();
 
     private static async Task ReaderLoopAsync(TerrariaMemoryReader memoryReader, CancellationToken cancellationToken)
     {

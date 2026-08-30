@@ -38,23 +38,23 @@ namespace TerrariaRPC.Core
             bool isMenuContext = !isInGame;
 
             string title = isMenuContext
-                ? PresenceTemplateEngine.Format(config.MainMenuLine1, state)
-                : PresenceTemplateEngine.Format(config.InGameLine1, state);
+                ? PresenceTemplateEngine.Format(config.MainMenuLine1, state, iconManager)
+                : PresenceTemplateEngine.Format(config.InGameLine1, state, iconManager);
 
             string subtitle1 = isMenuContext
-                ? PresenceTemplateEngine.Format(config.MainMenuLine2, state)
-                : PresenceTemplateEngine.Format(config.InGameLine2, state);
+                ? PresenceTemplateEngine.Format(config.MainMenuLine2, state, iconManager)
+                : PresenceTemplateEngine.Format(config.InGameLine2, state, iconManager);
 
             string largeIconUrl = config.LargeImageStyleIndex == 1
-                ? ResolveImageUrlTemplate(config.LargeImageCustomUrl, state)
-                : (isInGame ? iconManager.GetCurrentWorldIconUrl() : ResolveImageUrlTemplate(config.MainMenuLargeImageUrl, state, "https://terraria.wiki.gg/images/Treetop_Forest_1.png"));
+                ? ResolveImageUrlTemplate(config.LargeImageCustomUrl, state, iconManager)
+                : (isInGame ? iconManager.GetCurrentWorldIconUrl() : ResolveImageUrlTemplate(config.MainMenuLargeImageUrl, state, iconManager, "https://terraria.wiki.gg/images/Treetop_Forest_1.png"));
 
             string largeImageText = "";
             if (isInGame)
             {
                 if (config.LargeImageStyleIndex == 1)
                 {
-                    largeImageText = PresenceTemplateEngine.Format(config.LargeImageCustomText, state);
+                    largeImageText = PresenceTemplateEngine.Format(config.LargeImageCustomText, state, iconManager);
                 }
                 else if (!string.IsNullOrEmpty(state.WorldDifficulty))
                 {
@@ -90,7 +90,7 @@ namespace TerrariaRPC.Core
             }
             else
             {
-                largeImageText = PresenceTemplateEngine.Format(config.MainMenuLargeImageText, state);
+                largeImageText = PresenceTemplateEngine.Format(config.MainMenuLargeImageText, state, iconManager);
             }
 
             // Discord enforces a 128-char limit on image tooltip text
@@ -111,8 +111,8 @@ namespace TerrariaRPC.Core
             }
             else
             {
-                smallIconUrl = ResolveImageUrlTemplate(config.MainMenuSmallImageUrl, state);
-                smallImageText = PresenceTemplateEngine.Format(config.MainMenuSmallImageText, state);
+                smallIconUrl = ResolveImageUrlTemplate(config.MainMenuSmallImageUrl, state, iconManager);
+                smallImageText = PresenceTemplateEngine.Format(config.MainMenuSmallImageText, state, iconManager);
             }
 
             if (smallImageText.Length > 128)
@@ -142,9 +142,9 @@ namespace TerrariaRPC.Core
             client?.Dispose();
         }
 
-        private static string ResolveImageUrlTemplate(string template, TerrariaGameState state, string fallback = "")
+        private static string ResolveImageUrlTemplate(string template, TerrariaGameState state, IconManager iconManager, string fallback = "")
         {
-            string resolved = PresenceTemplateEngine.Format(template, state).Trim();
+            string resolved = PresenceTemplateEngine.Format(template, state, iconManager).Trim();
             return string.IsNullOrWhiteSpace(resolved) ? fallback : resolved;
         }
     }

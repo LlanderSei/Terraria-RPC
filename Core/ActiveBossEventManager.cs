@@ -27,39 +27,39 @@ namespace TerrariaRPC.Core
     private int _rotationIndex = 0;
     private DateTime _lastRotationTime = DateTime.MinValue;
 
-    private static string ResolveBossText(TerrariaGameState state, RpcConfig config)
+    private static string ResolveBossText(TerrariaGameState state, RpcConfig config, IconManager iconManager)
     {
       return string.IsNullOrWhiteSpace(config.BossSmallTextTemplate)
         ? state.ActiveBossText
-        : PresenceTemplateEngine.Format(config.BossSmallTextTemplate, state);
+        : PresenceTemplateEngine.Format(config.BossSmallTextTemplate, state, iconManager);
     }
 
-    private static string ResolveProgressiveEventText(TerrariaGameState state, RpcConfig config)
+    private static string ResolveProgressiveEventText(TerrariaGameState state, RpcConfig config, IconManager iconManager)
     {
       return string.IsNullOrWhiteSpace(config.ProgressiveEventSmallTextTemplate)
         ? state.ActiveEventText
-        : PresenceTemplateEngine.Format(config.ProgressiveEventSmallTextTemplate, state);
+        : PresenceTemplateEngine.Format(config.ProgressiveEventSmallTextTemplate, state, iconManager);
     }
 
-    private static string ResolveNonProgressiveEventText(TerrariaGameState state, RpcConfig config)
+    private static string ResolveNonProgressiveEventText(TerrariaGameState state, RpcConfig config, IconManager iconManager)
     {
       return string.IsNullOrWhiteSpace(config.NonProgressiveEventSmallTextTemplate)
         ? state.ActiveNonProgressiveEventText
-        : PresenceTemplateEngine.Format(config.NonProgressiveEventSmallTextTemplate, state);
+        : PresenceTemplateEngine.Format(config.NonProgressiveEventSmallTextTemplate, state, iconManager);
     }
 
-    private static string ResolvePeacefulEventText(TerrariaGameState state, RpcConfig config)
+    private static string ResolvePeacefulEventText(TerrariaGameState state, RpcConfig config, IconManager iconManager)
     {
       return string.IsNullOrWhiteSpace(config.PeacefulEventSmallTextTemplate)
         ? $"{state.ActivePeacefulEventName} is occuring."
-        : PresenceTemplateEngine.Format(config.PeacefulEventSmallTextTemplate, state);
+        : PresenceTemplateEngine.Format(config.PeacefulEventSmallTextTemplate, state, iconManager);
     }
 
-    private static string ResolveWeatherText(TerrariaGameState state, RpcConfig config)
+    private static string ResolveWeatherText(TerrariaGameState state, RpcConfig config, IconManager iconManager)
     {
       return string.IsNullOrWhiteSpace(config.WeatherSmallTextTemplate)
         ? state.ActiveWeatherName
-        : PresenceTemplateEngine.Format(config.WeatherSmallTextTemplate, state);
+        : PresenceTemplateEngine.Format(config.WeatherSmallTextTemplate, state, iconManager);
     }
 
     /// <summary>
@@ -76,7 +76,7 @@ namespace TerrariaRPC.Core
         {
           Category = EntityCategory.Boss,
           Name = state.ActiveBossName,
-          DisplayText = ResolveBossText(state, config),
+          DisplayText = ResolveBossText(state, config, iconManager),
           IconUrl = iconManager.GetBossIconUrl(state.ActiveBossName)
         };
       }
@@ -88,7 +88,7 @@ namespace TerrariaRPC.Core
         {
           Category = EntityCategory.Event,
           Name = state.ActiveEventName,
-          DisplayText = ResolveProgressiveEventText(state, config),
+          DisplayText = ResolveProgressiveEventText(state, config, iconManager),
           IconUrl = iconManager.GetEventIconUrl(state.ActiveEventName)
         };
       }
@@ -100,7 +100,7 @@ namespace TerrariaRPC.Core
         {
           Category = EntityCategory.NonProgressiveEvent,
           Name = state.ActiveNonProgressiveEventName,
-          DisplayText = ResolveNonProgressiveEventText(state, config),
+          DisplayText = ResolveNonProgressiveEventText(state, config, iconManager),
           IconUrl = iconManager.GetEventIconUrl(state.ActiveNonProgressiveEventName)
         };
       }
@@ -112,7 +112,7 @@ namespace TerrariaRPC.Core
         {
           Category = EntityCategory.PeacefulEvent,
           Name = state.ActivePeacefulEventName,
-          DisplayText = ResolvePeacefulEventText(state, config),
+          DisplayText = ResolvePeacefulEventText(state, config, iconManager),
           IconUrl = iconManager.GetPeacefulIconUrl(state.ActivePeacefulEventName)
         };
       }
@@ -124,7 +124,7 @@ namespace TerrariaRPC.Core
         {
           Category = EntityCategory.Weather,
           Name = state.ActiveWeatherName,
-          DisplayText = ResolveWeatherText(state, config),
+          DisplayText = ResolveWeatherText(state, config, iconManager),
           IconUrl = iconManager.GetWeatherIconUrl(state.ActiveWeatherName)
         };
       }
@@ -140,68 +140,25 @@ namespace TerrariaRPC.Core
       // Custom URL override mode
       if (config.SmallImageStyleIndex == 1)
       {
-        return (PresenceTemplateEngine.Format(config.SmallImageCustomUrl, state), config.SmallImageCustomText);
+        return (PresenceTemplateEngine.Format(config.SmallImageCustomUrl, state, iconManager), PresenceTemplateEngine.Format(config.SmallImageCustomText, state, iconManager));
       }
 
-      // Rotation mode based on checkboxes
+      // Rotation mode based on configured status list
       var slots = new List<(string IconUrl, string HoverText)>();
 
-      // Slot A: Holding Item
-      if (config.SmallItemEnabled && !string.IsNullOrEmpty(state.PlayerItemHeld))
+      foreach (var template in config.InGame.SmallDetails.Templates)
       {
-        string iconUrl = string.IsNullOrWhiteSpace(config.HeldItemSmallImageUrlTemplate)
-          ? itemIconUrl
-          : PresenceTemplateEngine.Format(config.HeldItemSmallImageUrlTemplate, state).Trim();
-
-        string text = string.IsNullOrWhiteSpace(config.HeldItemSmallTextTemplate)
-          ? (string.IsNullOrEmpty(state.PlayerItemPrefix)
-            ? state.PlayerItemHeld
-            : $"{state.PlayerItemPrefix} {state.PlayerItemHeld}")
-          : PresenceTemplateEngine.Format(config.HeldItemSmallTextTemplate, state);
-
-        if (!string.IsNullOrWhiteSpace(iconUrl) || !string.IsNullOrWhiteSpace(text))
+        if (!template.Enabled)
         {
-          slots.Add((iconUrl, text));
-        }
-      }
-
-      // Boss / Event processing if enabled
-      if (config.SmallBossEventEnabled)
-      {
-        // Primary Top Priority Entity
-        var primary = GetActiveBossesAndEvents(state, config, iconManager);
-        if (primary.Category != EntityCategory.None)
-        {
-          slots.Add((primary.IconUrl, primary.DisplayText));
+          continue;
         }
 
-        // Additional explicitly Included categories (for cycling alongside primary)
-        // 1. Events include
-        if (config.IncludeEvents && !config.ExcludeEvents && state.HasActiveEvent && primary.Category != EntityCategory.Event)
-        {
-          string icon = iconManager.GetEventIconUrl(state.ActiveEventName);
-          slots.Add((icon, ResolveProgressiveEventText(state, config)));
-        }
+        string iconUrl = PresenceTemplateEngine.Format(template.Image, state, iconManager).Trim();
+        string hoverText = PresenceTemplateEngine.Format(template.Text, state, iconManager).Trim();
 
-        // 2. Non-progressive events include
-        if (config.IncludeNonProgressiveEvents && !config.ExcludeNonProgressiveEvents && state.HasActiveNonProgressiveEvent && primary.Category != EntityCategory.NonProgressiveEvent)
+        if (!string.IsNullOrWhiteSpace(iconUrl) || !string.IsNullOrWhiteSpace(hoverText))
         {
-          string icon = iconManager.GetEventIconUrl(state.ActiveNonProgressiveEventName);
-          slots.Add((icon, ResolveNonProgressiveEventText(state, config)));
-        }
-
-        // 3. Peaceful events include
-        if (config.IncludePeacefulEvents && !config.ExcludePeacefulEvents && state.HasActivePeacefulEvent && primary.Category != EntityCategory.PeacefulEvent)
-        {
-          string icon = iconManager.GetPeacefulIconUrl(state.ActivePeacefulEventName);
-          slots.Add((icon, ResolvePeacefulEventText(state, config)));
-        }
-
-        // 4. Weather include
-        if (config.IncludeWeather && !config.ExcludeWeather && state.HasActiveWeather && primary.Category != EntityCategory.Weather)
-        {
-          string icon = iconManager.GetWeatherIconUrl(state.ActiveWeatherName);
-          slots.Add((icon, ResolveWeatherText(state, config)));
+          slots.Add((iconUrl, hoverText));
         }
       }
 

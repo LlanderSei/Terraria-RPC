@@ -463,7 +463,7 @@ namespace TerrariaRPC.Core
     public string GetBossIconUrl(string bossName)
     {
       if (string.IsNullOrEmpty(bossName)) return "";
-      if (fullConfig.BossIcons.TryGetValue(bossName, out var url) && !string.IsNullOrEmpty(url))
+      if (TryGetIconValue(fullConfig.BossIcons, bossName, out var url))
         return url;
 
       // Check if boss name contains pillar
@@ -480,7 +480,7 @@ namespace TerrariaRPC.Core
     public string GetEventIconUrl(string eventName)
     {
       if (string.IsNullOrEmpty(eventName)) return "";
-      if (fullConfig.EventIcons.TryGetValue(eventName, out var url) && !string.IsNullOrEmpty(url))
+      if (TryGetIconValue(fullConfig.EventIcons, eventName, out var url))
         return url;
       return "";
     }
@@ -488,16 +488,16 @@ namespace TerrariaRPC.Core
     public string GetPeacefulIconUrl(string eventName)
     {
       if (string.IsNullOrEmpty(eventName)) return "";
-      if (fullConfig.PeacefulIcons.TryGetValue(eventName, out var url) && !string.IsNullOrEmpty(url))
+      if (TryGetIconValue(fullConfig.PeacefulIcons, eventName, out var url))
         return url;
       if (eventName.Contains("Starfall", StringComparison.OrdinalIgnoreCase) &&
-          fullConfig.PeacefulIcons.TryGetValue("Starfall", out url) && !string.IsNullOrEmpty(url))
+          TryGetIconValue(fullConfig.PeacefulIcons, "Starfall", out url))
         return url;
       if (eventName.Contains("Party", StringComparison.OrdinalIgnoreCase) &&
-          fullConfig.PeacefulIcons.TryGetValue("Party", out url) && !string.IsNullOrEmpty(url))
+          TryGetIconValue(fullConfig.PeacefulIcons, "Party", out url))
         return url;
       if (eventName.Contains("Lantern Night", StringComparison.OrdinalIgnoreCase) &&
-          fullConfig.PeacefulIcons.TryGetValue("Lantern Night", out url) && !string.IsNullOrEmpty(url))
+          TryGetIconValue(fullConfig.PeacefulIcons, "Lantern Night", out url))
         return url;
       return "";
     }
@@ -505,15 +505,110 @@ namespace TerrariaRPC.Core
     public string GetWeatherIconUrl(string weatherName)
     {
       if (string.IsNullOrEmpty(weatherName)) return "";
-      if (fullConfig.WeatherIcons.TryGetValue(weatherName, out var url) && !string.IsNullOrEmpty(url))
+      if (TryGetIconValue(fullConfig.WeatherIcons, weatherName, out var url))
         return url;
       if (weatherName.Contains("Meteor Shower", StringComparison.OrdinalIgnoreCase) &&
-          fullConfig.WeatherIcons.TryGetValue("Meteor Shower", out url) && !string.IsNullOrEmpty(url))
+          TryGetIconValue(fullConfig.WeatherIcons, "Meteor Shower", out url))
         return url;
       return "";
     }
 
     // ── World Rotation builder ──────────────────────────────────────────────
+
+    public string FetchConfigValue(string source, string path)
+    {
+      if (string.IsNullOrWhiteSpace(source) || string.IsNullOrWhiteSpace(path))
+      {
+        Logger.Warn($"FetchConfigValue miss: source='{source ?? ""}' path='{path ?? ""}' (blank input)");
+        return "";
+      }
+
+      if (string.Equals(source, "icons.json", StringComparison.OrdinalIgnoreCase))
+      {
+        string resolved = ResolveIconPath(path);
+        Logger.Debug($"FetchConfigValue: source='{source}' path='{path}' => '{resolved}'");
+        return resolved;
+      }
+
+      Logger.Warn($"FetchConfigValue miss: unsupported source='{source}' path='{path}'");
+      return "";
+    }
+
+    private string ResolveIconPath(string path)
+    {
+      string[] parts = path.Split('.', 2, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+      if (parts.Length != 2)
+      {
+        Logger.Warn($"ResolveIconPath miss: invalid path='{path}'");
+        return "";
+      }
+
+      Dictionary<string, string>? dictionary = parts[0].ToLowerInvariant() switch
+      {
+        "bossicons" => fullConfig.BossIcons,
+        "eventicons" => fullConfig.EventIcons,
+        "peacefulicons" => fullConfig.PeacefulIcons,
+        "weathericons" => fullConfig.WeatherIcons,
+        _ => null
+      };
+
+      if (dictionary == null)
+      {
+        Logger.Warn($"ResolveIconPath miss: unknown icon group='{parts[0]}' for path='{path}'");
+        return "";
+      }
+
+      if (TryGetIconValue(dictionary, parts[1], out var value))
+      {
+        return value;
+      }
+
+      Logger.Warn($"ResolveIconPath miss: group='{parts[0]}' key='{parts[1]}' path='{path}'");
+      return "";
+    }
+
+    private static bool TryGetIconValue(Dictionary<string, string> dictionary, string lookupKey, out string value)
+    {
+      if (dictionary.TryGetValue(lookupKey, out value) && !string.IsNullOrEmpty(value))
+      {
+        Logger.Debug($"TryGetIconValue hit: key='{lookupKey}'");
+        return true;
+      }
+
+      string normalizedLookupKey = NormalizeIconKey(lookupKey);
+      if (string.IsNullOrEmpty(normalizedLookupKey))
+      {
+        value = "";
+        return false;
+      }
+
+      foreach (var kvp in dictionary)
+      {
+        if (NormalizeIconKey(kvp.Key) == normalizedLookupKey && !string.IsNullOrEmpty(kvp.Value))
+        {
+          value = kvp.Value;
+          Logger.Debug($"TryGetIconValue normalized hit: lookupKey='{lookupKey}' matchedKey='{kvp.Key}'");
+          return true;
+        }
+      }
+
+      value = "";
+      Logger.Debug($"TryGetIconValue miss: key='{lookupKey}' normalized='{normalizedLookupKey}'");
+      return false;
+    }
+
+    private static string NormalizeIconKey(string key)
+    {
+      if (string.IsNullOrWhiteSpace(key))
+      {
+        return "";
+      }
+
+      return new string(key
+        .Where(char.IsLetterOrDigit)
+        .ToArray())
+        .ToLowerInvariant();
+    }
 
     private List<string> BuildRotation(TerrariaGameState state)
     {
