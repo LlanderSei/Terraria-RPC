@@ -427,6 +427,7 @@ namespace TerrariaRPC.Core
         { "Meteor Shower", "https://terraria.wiki.gg/images/Bestiary_Meteor.png" },
         { "Rain", "https://terraria.wiki.gg/images/Bestiary_Rain.png" },
         { "Thunderstorm", "https://files.catbox.moe/nuazde.png" },
+        { "Boulder Rain", "https://terraria.wiki.gg/wiki/Special:FilePath/Boulder.png" },
         { "Sandstorm", "https://terraria.wiki.gg/images/Bestiary_Sandstorm.png" },
         { "Windy Day", "https://terraria.wiki.gg/images/Bestiary_Windy_Day.png" }
       }

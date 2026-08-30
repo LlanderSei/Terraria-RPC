@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Collections.Generic;
@@ -348,6 +349,13 @@ namespace TerrariaRPC.Core
           Image = "{{ActiveWeather != \"\" ? FetchConfigValue(\"icons.json\", \"weatherIcons.\" + ActiveWeather) : \"\"}}",
           Text = "{{ActiveWeather}}",
           Enabled = true
+        },
+        new StatusTemplateEntry
+        {
+          StatusName = "Spectating",
+          Image = "{{IsSpectating ? \"https://terraria.wiki.gg/images/Scrying_Orb.png\" : \"\"}}",
+          Text = "{{IsSpectating ? \"Spectating {{SpectatedName}}...\" : \"\"}}",
+          Enabled = true
         }
       ];
     }
@@ -458,6 +466,17 @@ namespace TerrariaRPC.Core
       if (config.InGame.SmallDetails.Templates.Count == 0)
       {
         config.InGame.SmallDetails.Templates = RpcConfig.BuildDefaultSmallStatusTemplates();
+        changed = true;
+      }
+      else if (!config.InGame.SmallDetails.Templates.Any(item => string.Equals(item.StatusName, "Spectating", StringComparison.OrdinalIgnoreCase)))
+      {
+        config.InGame.SmallDetails.Templates.Add(new StatusTemplateEntry
+        {
+          StatusName = "Spectating",
+          Image = "{{IsSpectating ? \"https://terraria.wiki.gg/images/Scrying_Orb.png\" : \"\"}}",
+          Text = "{{IsSpectating ? \"Spectating {{SpectatedName}}...\" : \"\"}}",
+          Enabled = true
+        });
         changed = true;
       }
 

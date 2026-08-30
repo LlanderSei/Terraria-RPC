@@ -64,6 +64,9 @@ namespace TerrariaRPC.Core
     public int PlayerDef { get; set; } = 0;
     public string PlayerItemHeld { get; set; } = "";
     public string PlayerItemPrefix { get; set; } = "";
+    public bool PlayerIsSpectating { get; set; } = false;
+    public string SpectatedName { get; set; } = "";
+    public int RespawnTimer { get; set; } = 0;
     public bool PlayerHasPosition { get; set; } = false;
     public float PlayerCenterX { get; set; } = 0f;
     public float PlayerCenterY { get; set; } = 0f;
@@ -193,7 +196,7 @@ namespace TerrariaRPC.Core
 
     // -- Weather Event Info -------------------------------------------------
     public bool HasActiveWeather => !string.IsNullOrEmpty(ActiveWeatherName);
-    public string ActiveWeatherName { get; set; } = ""; // e.g. "Rain", "Thunderstorm", "Sandstorm", "Windy Day"
+    public string ActiveWeatherName { get; set; } = ""; // e.g. "Rain", "Thunderstorm", "Boulder Rain", "Sandstorm", "Windy Day"
 
     public TerrariaGameState Clone()
     {
@@ -220,6 +223,9 @@ namespace TerrariaRPC.Core
         PlayerDef = PlayerDef,
         PlayerItemHeld = PlayerItemHeld,
         PlayerItemPrefix = PlayerItemPrefix,
+        PlayerIsSpectating = PlayerIsSpectating,
+        SpectatedName = SpectatedName,
+        RespawnTimer = RespawnTimer,
         PlayerHasPosition = PlayerHasPosition,
         PlayerCenterX = PlayerCenterX,
         PlayerCenterY = PlayerCenterY,
@@ -311,6 +317,9 @@ namespace TerrariaRPC.Core
       CurrentState.PlayerDef = 0;
       CurrentState.PlayerItemHeld = "";
       CurrentState.PlayerItemPrefix = "";
+      CurrentState.PlayerIsSpectating = false;
+      CurrentState.SpectatedName = "";
+      CurrentState.RespawnTimer = 0;
       CurrentState.PlayerHasPosition = false;
       CurrentState.PlayerCenterX = 0f;
       CurrentState.PlayerCenterY = 0f;

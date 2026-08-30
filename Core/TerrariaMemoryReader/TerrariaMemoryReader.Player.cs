@@ -10,6 +10,9 @@ namespace TerrariaRPC.Core
     {
       CurrentState.TorchGodActive = false;
       CurrentState.PlayerHasPosition = false;
+      CurrentState.PlayerIsSpectating = false;
+      CurrentState.SpectatedName = "";
+      CurrentState.RespawnTimer = 0;
 
       var myPlayer = mainType.StaticFields.FirstOrDefault(f => f.Name == "myPlayer")?.Read<int>(appDomain) ?? -1;
       CurrentState.PlayerIndex = myPlayer;
@@ -33,6 +36,10 @@ namespace TerrariaRPC.Core
               CurrentState.PlayerMaxMp = playerObj.ReadField<int>("statManaMax2");
               CurrentState.PlayerDef = playerObj.ReadField<int>("statDefense");
               CurrentState.TorchGodActive = playerObj.ReadField<bool>("happyFunTorchTime");
+              int spectatingIndex = playerObj.ReadField<int>("spectating");
+              bool isDead = playerObj.ReadField<bool>("dead");
+              CurrentState.RespawnTimer = playerObj.ReadField<int>("respawnTimer");
+              CurrentState.PlayerIsSpectating = spectatingIndex >= 0 || isDead || CurrentState.RespawnTimer > 0;
 
               var positionField = playerObj.Type?.Fields.FirstOrDefault(f => f.Name == "position");
               var positionType = positionField?.Type;
@@ -48,6 +55,33 @@ namespace TerrariaRPC.Core
                 CurrentState.PlayerCenterX = posX + width * 0.5f;
                 CurrentState.PlayerCenterY = posY + height * 0.5f;
                 CurrentState.PlayerHasPosition = true;
+              }
+
+              if (spectatingIndex >= 0 && playersAddr != 0)
+              {
+                var spectatedName = "";
+                try
+                {
+                  var spectatedArrayObj = runtime.Heap.GetObject(playersAddr);
+                  if (spectatedArrayObj.IsValid && spectatedArrayObj.IsArray)
+                  {
+                    int playerCount = spectatedArrayObj.AsArray().Length;
+                    if (spectatingIndex < playerCount)
+                    {
+                      var spectatedObj = spectatedArrayObj.AsArray().GetObjectValue(spectatingIndex);
+                      if (spectatedObj.IsValid)
+                      {
+                        spectatedName = spectatedObj.ReadStringField("name") ?? "";
+                      }
+                    }
+                  }
+                }
+                catch
+                {
+                  spectatedName = "";
+                }
+
+                CurrentState.SpectatedName = spectatedName;
               }
 
               var itemObj = playerObj.ReadObjectField("lastVisualizedSelectedItem");

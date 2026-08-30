@@ -69,6 +69,10 @@ namespace TerrariaRPC.Core
         ["PlayerHeldItemWikiName"] = string.IsNullOrEmpty(state.PlayerItemHeld)
           ? ""
           : state.PlayerItemHeld.Replace(" ", "_"),
+        ["PlayerIsSpectating"] = state.PlayerIsSpectating,
+        ["IsSpectating"] = state.PlayerIsSpectating,
+        ["SpectatedName"] = state.SpectatedName,
+        ["RespawnTimer"] = state.RespawnTimer,
 
         // Boss and events
         ["ActiveBoss"] = state.ActiveBossName,

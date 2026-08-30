@@ -746,13 +746,18 @@ namespace TerrariaRPC.Core
           }
         }
 
-        // 5. Weather Events (Rain, Thunderstorm, Sandstorm, Windy Day)
+        // 5. Weather Events (Rain, Thunderstorm, Boulder Rain, Sandstorm, Windy Day)
         bool meteorShower = mainType.StaticFields.FirstOrDefault(f => f.Name == "_canShowMeteorFall")?.Read<bool>(appDomain) ?? false;
         var sandstormType = TryGetCachedType(runtime, ref _sandstormTypeMT, "Terraria.GameContent.Events.Sandstorm");
         bool isSandstorm = false;
         if (sandstormType != null && !meteorShower)
         {
           isSandstorm = sandstormType.StaticFields.FirstOrDefault(f => f.Name == "Happening")?.Read<bool>(appDomain) ?? false;
+        }
+
+        bool hasSpecialSeed(string seedName)
+        {
+          return CurrentState.WorldSpecialSeeds.Any(seed => string.Equals(seed, seedName, StringComparison.OrdinalIgnoreCase));
         }
 
         if (meteorShower)
@@ -770,13 +775,23 @@ namespace TerrariaRPC.Core
             bool isRaining = mainType.StaticFields.FirstOrDefault(f => f.Name == "raining")?.Read<bool>(appDomain) ?? false;
             float maxRaining = mainType.StaticFields.FirstOrDefault(f => f.Name == "maxRaining")?.Read<float>(appDomain) ?? 0f;
             float windSpeed = mainType.StaticFields.FirstOrDefault(f => f.Name == "windSpeedCurrent")?.Read<float>(appDomain) ?? 0f;
+            bool isThunderstorm = isRaining && maxRaining > 0.6f && Math.Abs(windSpeed) > 0.4f;
+            bool isBoulderRain = isThunderstorm &&
+              hasSpecialSeed("Drunk") &&
+              hasSpecialSeed("For The Worthy") &&
+              !hasSpecialSeed("Remix");
 
-            if (isRaining)
+            if (isBoulderRain)
             {
-              if (maxRaining > 0.6f && Math.Abs(windSpeed) > 0.4f)
-                CurrentState.ActiveWeatherName = "Thunderstorm";
-              else
-                CurrentState.ActiveWeatherName = "Rain";
+              CurrentState.ActiveWeatherName = "Boulder Rain";
+            }
+            else if (isThunderstorm)
+            {
+              CurrentState.ActiveWeatherName = "Thunderstorm";
+            }
+            else if (isRaining)
+            {
+              CurrentState.ActiveWeatherName = "Rain";
             }
             else if (Math.Abs(windSpeed) >= 0.4f)
             {
