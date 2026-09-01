@@ -24,9 +24,6 @@ namespace TerrariaRPC.Core
 
   public class ActiveBossEventManager
   {
-    private int _rotationIndex = 0;
-    private DateTime _lastRotationTime = DateTime.MinValue;
-
     private static string ResolveBossText(TerrariaGameState state, RpcConfig config, IconManager iconManager)
     {
       return string.IsNullOrWhiteSpace(config.BossSmallTextTemplate)
@@ -135,7 +132,7 @@ namespace TerrariaRPC.Core
     /// <summary>
     /// Gets the current Small Image URL and Hover Text based on rotation settings.
     /// </summary>
-    public (string IconUrl, string HoverText) GetSmallIconAndText(TerrariaGameState state, RpcConfig config, IconManager iconManager, string itemIconUrl)
+    public (string IconUrl, string HoverText) GetSmallIconAndText(TerrariaGameState state, RpcConfig config, IconManager iconManager, string itemIconUrl, long presenceSequence)
     {
       // Custom URL override mode
       if (config.SmallImageStyleIndex == 1)
@@ -167,16 +164,13 @@ namespace TerrariaRPC.Core
         return ("", "");
       }
 
-      // Advance index if cycling interval elapsed
-      if (slots.Count > 1 && (DateTime.Now - _lastRotationTime).TotalSeconds >= 4.0)
+      int rotationIndex = 0;
+      if (slots.Count > 1 && presenceSequence > 0)
       {
-        _rotationIndex = (_rotationIndex + 1) % slots.Count;
-        _lastRotationTime = DateTime.Now;
+        rotationIndex = (int)((presenceSequence - 1) % slots.Count);
       }
 
-      if (_rotationIndex >= slots.Count) _rotationIndex = 0;
-
-      return slots[_rotationIndex];
+      return slots[rotationIndex];
     }
   }
 }

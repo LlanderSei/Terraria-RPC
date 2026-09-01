@@ -21,7 +21,12 @@ namespace TerrariaRPC.Core
         string next = ExpressionPattern.Replace(current, match =>
         {
           string expression = match.Groups[1].Value;
-          return TemplateExpressionEvaluator.Evaluate(expression, state, iconManager);
+          string result = TemplateExpressionEvaluator.Evaluate(expression, state, iconManager);
+          if (Logger.IsDebugEnabled && result == $"{{{{{expression}}}}}")
+          {
+            Logger.Debug($"Template evaluation returned raw fallback: {expression}");
+          }
+          return result;
         });
 
         if (next == current)

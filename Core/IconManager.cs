@@ -45,7 +45,6 @@ namespace TerrariaRPC.Core
     [JsonPropertyName("defaultIcons")] public EvilHardmodeVariants DefaultIcons { get; set; } = new();
     [JsonPropertyName("secretSeedIcon")] public string SecretSeedIcon { get; set; } = "";
     [JsonPropertyName("specialSeedIcons")] public SpecialSeedIcons SpecialSeedIcons { get; set; } = new();
-    [JsonPropertyName("cyclIntervalSecs")] public int CycleIntervalSecs { get; set; } = 5;
   }
 
   public class FullIconsConfig
@@ -84,8 +83,8 @@ namespace TerrariaRPC.Core
     // World rotation state
     private List<string> worldRotationUrls = new();
     private int worldCurrentIndex = 0;
-    private DateTime worldLastCycleTime = DateTime.MinValue;
     private string lastWorldSignature = "";
+    private long worldRotationBaseSequence = 0;
 
     public IconManager()
     {
@@ -156,9 +155,6 @@ namespace TerrariaRPC.Core
       current.WorldIcons.SecretSeedIcon = string.IsNullOrEmpty(current.WorldIcons.SecretSeedIcon)
         ? defaults.WorldIcons.SecretSeedIcon
         : current.WorldIcons.SecretSeedIcon;
-      current.WorldIcons.CycleIntervalSecs = current.WorldIcons.CycleIntervalSecs <= 0
-        ? defaults.WorldIcons.CycleIntervalSecs
-        : current.WorldIcons.CycleIntervalSecs;
 
       current.WorldIcons.DefaultIcons.Corrupt = string.IsNullOrEmpty(current.WorldIcons.DefaultIcons.Corrupt)
         ? defaults.WorldIcons.DefaultIcons.Corrupt
@@ -299,7 +295,6 @@ namespace TerrariaRPC.Core
     {
       WorldIcons = new WorldIconConfig
       {
-        CycleIntervalSecs = 3,
         SecretSeedIcon = "https://terraria.wiki.gg/images/Seed_Secret.png",
         DefaultIcons = new EvilHardmodeVariants
         {
@@ -435,7 +430,7 @@ namespace TerrariaRPC.Core
 
     // ── Public API ─────────────────────────────────────────────────────────
 
-    public void UpdateWorldState(TerrariaGameState state)
+    public void UpdateWorldState(TerrariaGameState state, long presenceSequence)
     {
       string sig = $"{state.WorldEvil}|{state.WorldIsHardmode}|{string.Join(',', state.WorldSpecialSeeds)}|{state.WorldSecretSeedsAsNum}";
 
@@ -444,21 +439,27 @@ namespace TerrariaRPC.Core
       lastWorldSignature = sig;
       worldRotationUrls = BuildRotation(state);
       worldCurrentIndex = 0;
-      worldLastCycleTime = DateTime.Now;
+      worldRotationBaseSequence = presenceSequence;
     }
 
-    public string GetCurrentWorldIconUrl()
+    public string GetCurrentWorldIconUrl(long presenceSequence)
     {
       if (worldRotationUrls.Count == 0) return "";
 
-      if (worldRotationUrls.Count > 1 &&
-          DateTime.Now - worldLastCycleTime >= TimeSpan.FromSeconds(fullConfig.WorldIcons.CycleIntervalSecs))
+      if (worldRotationUrls.Count == 1)
       {
-        worldCurrentIndex = (worldCurrentIndex + 1) % worldRotationUrls.Count;
-        worldLastCycleTime = DateTime.Now;
+        return worldRotationUrls[0];
       }
 
-      return worldRotationUrls[worldCurrentIndex];
+      long steps = presenceSequence - worldRotationBaseSequence;
+      if (steps < 0)
+      {
+        steps = 0;
+      }
+
+      int index = (int)(steps % worldRotationUrls.Count);
+      worldCurrentIndex = index;
+      return worldRotationUrls[index];
     }
 
     public string GetBossIconUrl(string bossName)
@@ -520,18 +521,21 @@ namespace TerrariaRPC.Core
     {
       if (string.IsNullOrWhiteSpace(source) || string.IsNullOrWhiteSpace(path))
       {
-        Logger.Warn($"FetchConfigValue miss: source='{source ?? ""}' path='{path ?? ""}' (blank input)");
+        Logger.WarnThrottled($"fetch-config:blank:{source}:{path}", $"FetchConfigValue miss [blank] source='{source ?? ""}' path='{path ?? ""}'");
         return "";
       }
 
       if (string.Equals(source, "icons.json", StringComparison.OrdinalIgnoreCase))
       {
         string resolved = ResolveIconPath(path);
-        Logger.Debug($"FetchConfigValue: source='{source}' path='{path}' => '{resolved}'");
+        if (!string.IsNullOrEmpty(resolved))
+        {
+          Logger.DebugThrottled($"fetch-config:hit:{source}:{path}", $"FetchConfigValue hit [{source}] {path} -> {resolved}");
+        }
         return resolved;
       }
 
-      Logger.Warn($"FetchConfigValue miss: unsupported source='{source}' path='{path}'");
+      Logger.WarnThrottled($"fetch-config:unsupported:{source}:{path}", $"FetchConfigValue miss [unsupported] source='{source}' path='{path}'");
       return "";
     }
 
@@ -540,7 +544,7 @@ namespace TerrariaRPC.Core
       string[] parts = path.Split('.', 2, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
       if (parts.Length != 2)
       {
-        Logger.Warn($"ResolveIconPath miss: invalid path='{path}'");
+        Logger.WarnThrottled($"resolve-icon:invalid:{path}", $"ResolveIconPath miss [invalid] path='{path}'");
         return "";
       }
 
@@ -555,7 +559,7 @@ namespace TerrariaRPC.Core
 
       if (dictionary == null)
       {
-        Logger.Warn($"ResolveIconPath miss: unknown icon group='{parts[0]}' for path='{path}'");
+        Logger.WarnThrottled($"resolve-icon:group:{parts[0]}:{path}", $"ResolveIconPath miss [group] '{parts[0]}' path='{path}'");
         return "";
       }
 
@@ -564,7 +568,7 @@ namespace TerrariaRPC.Core
         return value;
       }
 
-      Logger.Warn($"ResolveIconPath miss: group='{parts[0]}' key='{parts[1]}' path='{path}'");
+      Logger.WarnThrottled($"resolve-icon:key:{parts[0]}:{parts[1]}", $"ResolveIconPath miss [{parts[0]}] '{parts[1]}'");
       return "";
     }
 
@@ -572,7 +576,7 @@ namespace TerrariaRPC.Core
     {
       if (dictionary.TryGetValue(lookupKey, out value) && !string.IsNullOrEmpty(value))
       {
-        Logger.Debug($"TryGetIconValue hit: key='{lookupKey}'");
+        Logger.DebugThrottled($"icon-hit:{lookupKey}", $"Icon hit '{lookupKey}'");
         return true;
       }
 
@@ -588,13 +592,13 @@ namespace TerrariaRPC.Core
         if (NormalizeIconKey(kvp.Key) == normalizedLookupKey && !string.IsNullOrEmpty(kvp.Value))
         {
           value = kvp.Value;
-          Logger.Debug($"TryGetIconValue normalized hit: lookupKey='{lookupKey}' matchedKey='{kvp.Key}'");
+          Logger.DebugThrottled($"icon-hit-normalized:{lookupKey}:{kvp.Key}", $"Icon hit '{lookupKey}' -> '{kvp.Key}'");
           return true;
         }
       }
 
       value = "";
-      Logger.Debug($"TryGetIconValue miss: key='{lookupKey}' normalized='{normalizedLookupKey}'");
+      Logger.DebugThrottled($"icon-miss:{lookupKey}", $"Icon miss '{lookupKey}'");
       return false;
     }
 

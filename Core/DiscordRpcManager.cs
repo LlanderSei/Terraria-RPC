@@ -29,10 +29,11 @@ namespace TerrariaRPC.Core
             }
         }
 
-    public void UpdatePresence(TerrariaGameState state, RpcConfig config)
+    public void UpdatePresence(TerrariaGameState state, RpcConfig config, long presenceSequence)
     {
         EnsureClient(config.ClientId);
-        iconManager.UpdateWorldState(state);
+        Logger.SetThrottleWindow(TimeSpan.FromSeconds(Math.Max(1, config.General.UpdateInterval)));
+        iconManager.UpdateWorldState(state, presenceSequence);
 
             bool isInGame = state.Screen == GameScreen.InGameSinglePlayer || state.Screen == GameScreen.InGameMultiplayer;
             bool isMenuContext = !isInGame;
@@ -45,9 +46,12 @@ namespace TerrariaRPC.Core
                 ? PresenceTemplateEngine.Format(config.MainMenuLine2, state, iconManager)
                 : PresenceTemplateEngine.Format(config.InGameLine2, state, iconManager);
 
+            title = ClampDiscordText(title);
+            subtitle1 = ClampDiscordText(subtitle1);
+
             string largeIconUrl = config.LargeImageStyleIndex == 1
                 ? ResolveImageUrlTemplate(config.LargeImageCustomUrl, state, iconManager)
-                : (isInGame ? iconManager.GetCurrentWorldIconUrl() : ResolveImageUrlTemplate(config.MainMenuLargeImageUrl, state, iconManager, "https://terraria.wiki.gg/images/Treetop_Forest_1.png"));
+                : (isInGame ? iconManager.GetCurrentWorldIconUrl(presenceSequence) : ResolveImageUrlTemplate(config.MainMenuLargeImageUrl, state, iconManager, "https://terraria.wiki.gg/images/Treetop_Forest_1.png"));
 
             string largeImageText = "";
             if (isInGame)
@@ -105,7 +109,7 @@ namespace TerrariaRPC.Core
                 string heldItemWikiName = (state.PlayerItemHeld ?? "").Replace(" ", "_");
                 string itemIconUrl = !string.IsNullOrEmpty(heldItemWikiName) ? $"https://terraria.wiki.gg/images/{heldItemWikiName}.png" : "";
 
-                var (url, text) = bossEventManager.GetSmallIconAndText(state, config, iconManager, itemIconUrl);
+                var (url, text) = bossEventManager.GetSmallIconAndText(state, config, iconManager, itemIconUrl, presenceSequence);
                 smallIconUrl = url;
                 smallImageText = text;
             }
@@ -134,7 +138,10 @@ namespace TerrariaRPC.Core
 
             client.SetPresence(presence);
             client.Invoke();
-            Logger.Info($"Presence sent → Details:\"{title}\" State:\"{subtitle1}\" SmallIcon:\"{smallIconUrl}\" SmallText:\"{smallImageText}\"");
+            Logger.InfoThrottled(
+              "presence-sent",
+              $"Presence sent | Details='{title}' | State='{subtitle1}' | Small='{smallIconUrl}' | Hover='{smallImageText}'"
+            );
         }
 
         public void Dispose()
@@ -146,6 +153,22 @@ namespace TerrariaRPC.Core
         {
             string resolved = PresenceTemplateEngine.Format(template, state, iconManager).Trim();
             return string.IsNullOrWhiteSpace(resolved) ? fallback : resolved;
+        }
+
+        private static string ClampDiscordText(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return "";
+            }
+
+            if (value.Length <= 128)
+            {
+                return value;
+            }
+
+            Logger.Warn($"Discord text field exceeded 128 chars; truncating. Length={value.Length}");
+            return value[..125] + "...";
         }
     }
 }

@@ -39,11 +39,12 @@ namespace TerrariaRPC.Core
   public class GeneralConfig
   {
     public string ClientId { get; set; } = "1537768004119691335";
+    public int UpdateInterval { get; set; } = 2;
   }
 
   public class MainMenuConfig
   {
-    public string Line1 { get; set; } = "{{!IsAttached ? \"Waiting for Terraria...\" :  Screen in \"MainMenu\" ? \"On Main Menu\" : Screen in [\"PlayerSelection\", \"WorldSelection\", \"EnteringWorld\"] ? \"Single Player\" : Screen in [\"MultiplayerBrowser\", \"MultiplayerPlayerSelection\", \"MultiplayerIpSelection\", \"MultiplayerJoining\"] ? \"Multiplayer\" : \"In Menus\"}}";
+    public string Line1 { get; set; } = "{{!IsAttached ? \"Waiting for Terraria...\" :  Screen in \"MainMenu\" ? \"On Main Menu\" : Screen in [\"PlayerSelection\", \"WorldSelection\", \"EnteringWorld\"] ? \"Single Player\" : (Screen in [\"MultiplayerBrowser\", \"MultiplayerPlayerSelection\", \"MultiplayerIpSelection\", \"MultiplayerJoining\"] || RawMenuMode in [14] ? \"Multiplayer\" : \"In Menus\"}}";
     public string Line2 { get; set; } = "{{!IsAttached ? \"\" : Screen == \"PlayerSelection\" ? \"Choosing a player...\" : Screen == \"WorldSelection\" ? \"Selecting a world...\" : Screen == \"EnteringWorld\" ? \"Entering {{WorldName}}...\" : Screen == \"MultiplayerBrowser\" ? \"Selecting connection type...\" : Screen == \"MultiplayerPlayerSelection\" ? \"Choosing a player...\" : Screen == \"MultiplayerIpSelection\" ? \"Selecting an address to join...\" : Screen == \"MultiplayerJoining\" ? \"Joining world...\" : \"\"}}";
     public StatusDetailConfig SmallDetails { get; set; } = new();
     public StatusDetailConfig LargeDetails { get; set; } = new()
@@ -289,6 +290,13 @@ namespace TerrariaRPC.Core
       set => General.ClientId = value;
     }
 
+    [JsonIgnore]
+    public int UpdateInterval
+    {
+      get => General.UpdateInterval;
+      set => General.UpdateInterval = value;
+    }
+
     // Legacy aliases for migration/backward compatibility.
     [JsonIgnore]
     public string Line1
@@ -353,8 +361,8 @@ namespace TerrariaRPC.Core
         new StatusTemplateEntry
         {
           StatusName = "Spectating",
-          Image = "{{IsSpectating ? \"https://terraria.wiki.gg/images/Scrying_Orb.png\" : \"\"}}",
-          Text = "{{IsSpectating ? \"Spectating {{SpectatedName}}...\" : \"\"}}",
+          Image = "{{SpectatedName != \"\" ? \"https://terraria.wiki.gg/images/Scrying_Orb.png\" : \"\"}}",
+          Text = "{{SpectatedName != \"\" ? \"Spectating {{SpectatedName}}...\" : \"\"}}",
           Enabled = true
         }
       ];
@@ -448,6 +456,11 @@ namespace TerrariaRPC.Core
       config.General ??= new GeneralConfig();
       config.InGame.BossAndEventPriority ??= new BossAndEventPriorityConfig();
       config.InGame.BossAndEventPriority.BossPriority ??= new BossPriorityConfig();
+      if (config.General.UpdateInterval <= 0)
+      {
+        config.General.UpdateInterval = 2;
+        changed = true;
+      }
 
       config.MainMenu.SmallDetails ??= new StatusDetailConfig();
       config.MainMenu.LargeDetails ??= new StatusDetailConfig();
@@ -474,7 +487,7 @@ namespace TerrariaRPC.Core
         {
           StatusName = "Spectating",
           Image = "{{IsSpectating ? \"https://terraria.wiki.gg/images/Scrying_Orb.png\" : \"\"}}",
-          Text = "{{IsSpectating ? \"Spectating {{SpectatedName}}...\" : \"\"}}",
+          Text = "{{SpectatedName != \"\" ? \"Spectating {{SpectatedName}}...\" : \"\"}}",
           Enabled = true
         });
         changed = true;

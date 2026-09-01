@@ -62,11 +62,11 @@
         </Grid>
 
         <Grid Name="InGamePanel" ColumnDefinitions="180,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" IsVisible="False">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Line 1:" VerticalAlignment="Center" Margin="0,0,0,10" />
-          <TextBox Name="Line1Box" Grid.Row="0" Grid.Column="1" Margin="0,0,0,10" TextChanged="OnSingleLineTextChanged" PastingFromClipboard="OnSingleLinePastingFromClipboard" />
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Line 1:" VerticalAlignment="Top" Margin="0,6,0,10" />
+          <TextBox Name="Line1Box" Grid.Row="0" Grid.Column="1" Margin="0,0,0,10" TextChanged="OnSingleLineTextChanged" PastingFromClipboard="OnSingleLinePastingFromClipboard" GotFocus="OnMainMenuFieldGotFocus" LostFocus="OnMainMenuFieldLostFocus" />
 
-          <TextBlock Grid.Row="1" Grid.Column="0" Text="Line 2:" VerticalAlignment="Center" Margin="0,0,0,10" />
-          <TextBox Name="Line2Box" Grid.Row="1" Grid.Column="1" Margin="0,0,0,10" TextChanged="OnSingleLineTextChanged" PastingFromClipboard="OnSingleLinePastingFromClipboard" />
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Line 2:" VerticalAlignment="Top" Margin="0,6,0,10" />
+          <TextBox Name="Line2Box" Grid.Row="1" Grid.Column="1" Margin="0,0,0,10" TextChanged="OnSingleLineTextChanged" PastingFromClipboard="OnSingleLinePastingFromClipboard" GotFocus="OnMainMenuFieldGotFocus" LostFocus="OnMainMenuFieldLostFocus" />
 
           <Grid Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" ColumnDefinitions="180,*,Auto" Margin="0,0,0,10">
             <TextBlock Grid.Column="0" Text="Small Image &amp; Text Style:" VerticalAlignment="Center" Margin="0,0,8,0" />
@@ -120,9 +120,11 @@
         </Grid>
 
         <TextBlock Text="Discord" FontWeight="Bold" FontSize="18" />
-        <Grid ColumnDefinitions="180,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Client ID:" VerticalAlignment="Center" />
-          <TextBox Name="ClientIdBox" Grid.Row="0" Grid.Column="1" TextChanged="OnSingleLineTextChanged" PastingFromClipboard="OnSingleLinePastingFromClipboard" />
+        <Grid ColumnDefinitions="180,*" RowDefinitions="Auto,Auto" RowSpacing="10">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Update Interval (s):" VerticalAlignment="Center" />
+          <TextBox Name="UpdateIntervalBox" Grid.Row="0" Grid.Column="1" TextChanged="OnSingleLineTextChanged" PastingFromClipboard="OnSingleLinePastingFromClipboard" />
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Client ID:" VerticalAlignment="Center" />
+          <TextBox Name="ClientIdBox" Grid.Row="1" Grid.Column="1" TextChanged="OnSingleLineTextChanged" PastingFromClipboard="OnSingleLinePastingFromClipboard" />
         </Grid>
       </StackPanel>
     </ScrollViewer>

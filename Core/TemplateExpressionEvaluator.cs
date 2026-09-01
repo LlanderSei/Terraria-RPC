@@ -19,8 +19,12 @@ namespace TerrariaRPC.Core
         object? value = parser.ParseExpression();
         return FormatValue(value);
       }
-      catch
+      catch (Exception ex)
       {
+        Logger.WarnThrottled(
+          $"template-eval:{expression}",
+          $"Template evaluation failed [{ex.GetType().Name}]: {ex.Message} | expr='{expression}'"
+        );
         return $"{{{{{expression}}}}}";
       }
     }
@@ -49,6 +53,8 @@ namespace TerrariaRPC.Core
         ["WorldIsHardmode"] = state.WorldIsHardmode,
         ["WorldSpecialSeeds"] = string.Join(", ", state.WorldSpecialSeeds),
         ["WorldSecretSeeds"] = string.Join(", ", state.WorldSecretSeeds),
+        ["WorldSpecialSeedsList"] = state.WorldSpecialSeeds,
+        ["WorldSecretSeedsList"] = state.WorldSecretSeeds,
         ["WorldSecretSeedsAsNum"] = state.WorldSecretSeedsAsNum,
 
         // Player
@@ -132,6 +138,8 @@ namespace TerrariaRPC.Core
         float f => f.ToString(CultureInfo.InvariantCulture),
         double d => d.ToString(CultureInfo.InvariantCulture),
         decimal m => m.ToString(CultureInfo.InvariantCulture),
+        System.Collections.IEnumerable enumerable when value is not string
+          => string.Join(", ", enumerable.Cast<object?>().Select(FormatValue)),
         _ => Convert.ToString(value, CultureInfo.InvariantCulture) ?? ""
       };
     }
@@ -201,7 +209,10 @@ namespace TerrariaRPC.Core
       {
         object? left = ParseAnd();
         while (Match(TokenType.OrOr))
-          left = IsTruthy(left) || IsTruthy(ParseAnd());
+        {
+          object? right = ParseAnd();
+          left = IsTruthy(left) || IsTruthy(right);
+        }
         return left;
       }
 
@@ -209,7 +220,10 @@ namespace TerrariaRPC.Core
       {
         object? left = ParseEquality();
         while (Match(TokenType.AndAnd))
-          left = IsTruthy(left) && IsTruthy(ParseEquality());
+        {
+          object? right = ParseEquality();
+          left = IsTruthy(left) && IsTruthy(right);
+        }
         return left;
       }
 
@@ -475,7 +489,9 @@ namespace TerrariaRPC.Core
       private static bool IsContainedIn(object? left, object? right)
       {
         if (right is List<object?> list)
-          return list.Any(item => AreEqual(left, item));
+          return list.Any(item => item is System.Collections.IEnumerable nested && item is not string
+            ? nested.Cast<object?>().Any(nestedItem => AreEqual(left, nestedItem))
+            : AreEqual(left, item));
 
         if (right is object?[] array)
           return array.Any(item => AreEqual(left, item));

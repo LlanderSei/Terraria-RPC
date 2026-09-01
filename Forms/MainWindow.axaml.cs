@@ -23,9 +23,7 @@ public partial class MainWindow : Window
     InGame
   }
 
-  private bool _isUpdatingCheckboxes = false;
   private bool _isUpdatingPaneState = false;
-  private ConfigPane _activePane = ConfigPane.MainMenu;
   private bool _isAppShutdownRequested = false;
   private bool _isNormalizingSingleLineText = false;
   private TextBox? _expandedMainMenuField;
@@ -42,8 +40,6 @@ public partial class MainWindow : Window
     var config = ConfigManager.CurrentConfig;
     if (config != null)
     {
-      _isUpdatingCheckboxes = true;
-
       this.FindControl<TextBox>("MainMenuLine1Box")!.Text = config.MainMenuLine1;
       this.FindControl<TextBox>("MainMenuLine2Box")!.Text = config.MainMenuLine2;
       this.FindControl<TextBox>("MainMenuSmallImageUrlBox")!.Text = config.MainMenuSmallImageUrl;
@@ -64,9 +60,9 @@ public partial class MainWindow : Window
       this.FindControl<TextBox>("LargeImageCustomUrlBox")!.Text = config.LargeImageCustomUrl;
       this.FindControl<TextBox>("LargeImageCustomTextBox")!.Text = config.LargeImageCustomText;
 
+      this.FindControl<TextBox>("UpdateIntervalBox")!.Text = Math.Max(1, config.UpdateInterval).ToString();
       this.FindControl<TextBox>("ClientIdBox")!.Text = config.ClientId;
 
-      _isUpdatingCheckboxes = false;
       SetActivePane(ConfigPane.MainMenu);
       UpdateVisibility();
       RefreshSmallStatusRows();
@@ -76,7 +72,6 @@ public partial class MainWindow : Window
   private void SetActivePane(ConfigPane pane)
   {
     if (_isUpdatingPaneState) return;
-    _activePane = pane;
 
     var mainMenuPanel = this.FindControl<Panel>("MainMenuPanel");
     var inGamePanel = this.FindControl<Panel>("InGamePanel");
@@ -288,10 +283,9 @@ public partial class MainWindow : Window
     }
   }
 
-  public async void OnVariablesClick(object sender, RoutedEventArgs e)
+  public void OnVariablesClick(object sender, RoutedEventArgs e)
   {
-    var dialog = new VariablesDialog();
-    await dialog.ShowDialog(this);
+    VariablesDialog.ShowOrActivate(this);
   }
 
   private bool _isSaving = false;
@@ -323,6 +317,11 @@ public partial class MainWindow : Window
     config.LargeImageCustomUrl = this.FindControl<TextBox>("LargeImageCustomUrlBox")!.Text ?? "";
     config.LargeImageCustomText = this.FindControl<TextBox>("LargeImageCustomTextBox")!.Text ?? "";
 
+    if (!int.TryParse(this.FindControl<TextBox>("UpdateIntervalBox")!.Text, out int updateInterval))
+    {
+      updateInterval = 2;
+    }
+    config.UpdateInterval = Math.Max(1, updateInterval);
     config.ClientId = this.FindControl<TextBox>("ClientIdBox")!.Text ?? "123456789012345678";
 
     ConfigManager.SaveConfig();

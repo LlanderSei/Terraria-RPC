@@ -12,6 +12,8 @@ namespace TerrariaRPC.Forms;
 
 public partial class VariablesDialog : Window
 {
+  private static VariablesDialog? _instance;
+
   private sealed record VariableEntry(string Token, string Description, string Returns, string Color);
 
   private static readonly VariableEntry[] Variables =
@@ -34,6 +36,8 @@ public partial class VariablesDialog : Window
     new("{{WorldIsHardmode}}", "Whether the world is in hardmode", "True or False", "#4fc3f7"),
     new("{{WorldSpecialSeeds}}", "Active special seeds, comma-separated (e.g. Remix, For The Worthy)", "Comma-separated string", "#ffcc80"),
     new("{{WorldSecretSeeds}}", "Active secret seeds, comma-separated", "Comma-separated string", "#ffcc80"),
+    new("{{WorldSpecialSeedsList}}", "Active special seeds for membership checks", "List of strings", "#ffcc80"),
+    new("{{WorldSecretSeedsList}}", "Active secret seeds for membership checks", "List of strings", "#ffcc80"),
     new("{{WorldSecretSeedsAsNum}}", "Number of active secret seeds", "Integer", "#ffcc80"),
     new("---", "", "", ""),
     new("{{PlayerAtk}}", "Legacy highest weapon damage this session", "String number or N/A", "#a5d6a7"),
@@ -94,9 +98,26 @@ public partial class VariablesDialog : Window
 
   public VariablesDialog()
   {
+    _instance = this;
     InitializeComponent();
     BuildContent();
     StartRefreshTimer();
+  }
+
+  public static void ShowOrActivate(Window owner)
+  {
+    if (_instance is { IsVisible: true } existing)
+    {
+      existing.Activate();
+      return;
+    }
+
+    var dialog = new VariablesDialog
+    {
+      Owner = owner
+    };
+    dialog.Show();
+    dialog.Activate();
   }
 
   protected override void OnOpened(EventArgs e)
@@ -127,6 +148,10 @@ public partial class VariablesDialog : Window
   {
     _refreshTimer?.Stop();
     _refreshTimer = null;
+    if (ReferenceEquals(_instance, this))
+    {
+      _instance = null;
+    }
     base.OnClosed(e);
   }
 
@@ -186,15 +211,22 @@ public partial class VariablesDialog : Window
       row.ColumnDefinitions.Add(new ColumnDefinition(220, GridUnitType.Pixel));
       row.ColumnDefinitions.Add(new ColumnDefinition(240, GridUnitType.Pixel));
 
-      var tokenBlock = new TextBlock
+      var tokenBlock = new TextBox
       {
         Text = StripBraces(entry.Token),
         FontFamily = new FontFamily("Cascadia Code,Consolas,monospace"),
         Foreground = SolidColorBrush.Parse(entry.Color),
-        Margin = new(4, 0, 8, 0),
+        Margin = new(0, 0, 4, 0),
+        Padding = new(4, 0),
+        IsReadOnly = true,
+        BorderThickness = new(0),
+        Background = Brushes.Transparent,
         TextWrapping = TextWrapping.Wrap,
-        VerticalAlignment = VerticalAlignment.Top
+        VerticalAlignment = VerticalAlignment.Top,
+        VerticalContentAlignment = VerticalAlignment.Top,
+        HorizontalContentAlignment = HorizontalAlignment.Left
       };
+      tokenBlock.AddHandler(Control.RequestBringIntoViewEvent, (_, args) => args.Handled = true);
       var descBlock = new TextBlock
       {
         Text = entry.Description,

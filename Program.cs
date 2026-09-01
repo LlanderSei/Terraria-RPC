@@ -15,8 +15,8 @@ namespace TerrariaRPC
     private static volatile int _consecutiveMisses = 0;
     private const int MaxMisses = 3;
     private static readonly TimeSpan ReaderInterval = TimeSpan.FromSeconds(1);
-    private static readonly TimeSpan PresenceInterval = TimeSpan.FromSeconds(5);
     public static TerrariaMemoryReader? SharedMemoryReader { get; private set; }
+    private static long _presenceSequence = 0;
 
     [STAThread]
     public static void Main(string[] args)
@@ -141,16 +141,16 @@ namespace TerrariaRPC
       var iconManager = new IconManager();
       using var rpcManager = new DiscordRpcManager(iconManager);
       Logger.Info(noGui ? "Presence loop started (headless mode)." : "Presence loop started (GUI mode).");
-      using var timer = new PeriodicTimer(PresenceInterval);
 
       try
       {
-        while (await timer.WaitForNextTickAsync(cancellationSource.Token).ConfigureAwait(false))
+        while (!cancellationSource.Token.IsCancellationRequested)
         {
           try
           {
             TerrariaGameState snapshot = memoryReader.GetStateSnapshot();
-            rpcManager.UpdatePresence(snapshot, ConfigManager.CurrentConfig);
+            long presenceSequence = Interlocked.Increment(ref _presenceSequence);
+            rpcManager.UpdatePresence(snapshot, ConfigManager.CurrentConfig, presenceSequence);
 
             if (noGui)
             {
@@ -180,7 +180,16 @@ namespace TerrariaRPC
           }
           catch (Exception ex)
           {
-            Logger.Error($"Presence loop error: {ex.Message}");
+            Logger.ErrorThrottled($"presence-loop-error:{ex.GetType().Name}:{ex.Message}", $"Presence loop error: {ex.Message}");
+          }
+
+          try
+          {
+            await Task.Delay(GetPresenceInterval(), cancellationSource.Token).ConfigureAwait(false);
+          }
+          catch (OperationCanceledException)
+          {
+            break;
           }
         }
       }
@@ -189,6 +198,17 @@ namespace TerrariaRPC
       }
 
       Logger.Info("Presence loop stopped.");
+    }
+
+    private static TimeSpan GetPresenceInterval()
+    {
+      int intervalSeconds = ConfigManager.CurrentConfig?.General?.UpdateInterval ?? 2;
+      if (intervalSeconds < 1)
+      {
+        intervalSeconds = 2;
+      }
+
+      return TimeSpan.FromSeconds(intervalSeconds);
     }
 
     public static AppBuilder BuildAvaloniaApp()

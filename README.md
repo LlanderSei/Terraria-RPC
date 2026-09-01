@@ -37,32 +37,36 @@ Nothing! By downloading the **Self-Contained Release**, all necessary .NET runti
 You can configure Steam (or a Terraria shortcut) to launch Terraria-RPC automatically in the background whenever you play the game!
 
 For Steam:
-   1. Open Steam, right-click **Terraria**, and select **Properties**.
-   2. Under **General > Launch Options**, add the following command (replacing the path with wherever you extracted the app):
 
-   ```
-   "C:\Path\To\TerrariaRPC\TerrariaRPC.exe" --no-gui %command%
-   ```
-   *(Make sure to use the correct drive letter and folder path where you placed the `.exe`)*
+1.  Open Steam, right-click **Terraria**, and select **Properties**.
+2.  Under **General > Launch Options**, add the following command (replacing the path with wherever you extracted the app):
+
+```
+"C:\Path\To\TerrariaRPC\TerrariaRPC.exe" --no-gui %command%
+```
+
+_(Make sure to use the correct drive letter and folder path where you placed the `.exe`)_
 
 For Shortcuts:
-   1. Navigate to your Terraria.exe, right-click and press "Create Shortcut".
-   2. Right-click to the shortcut then press "Properties".
-   3. On Target field, replace it with the following argument:
-      ```
-      `C:\Windows\System32\cmd.exe /c start "" [Path\To\TerrariaRPC.exe] --no-gui & start "" [Path\To\Terraria.exe]
-      ```
-      *Replace \[Path\To\TerrariaRPC.exe\] & \[Path\To\Terraria.exe\] with their correct paths, don't include brackets, obviously...*\
-      *To copy your application path, hold left-shift while right-clicking the .exe, then press "Copy as path", replace it to \[Path\To\TerrariaRPC.exe\] or \[Path\To\Terraria.exe\] accordingly.*\
-      *Terraria need to be in the last argument launch due to it crashing because of UAC prompt from TerrariaRPC.*\
-      *Icon will change to cmd.exe, just replace it by clicking "Change Icon" and navigate to Terraria.exe and choose it.*\
-      *How this should look, for example on mine:*
-      ```
-      C:\Windows\System32\cmd.exe /c start "" "E:\Documents\Llander\GitHub\Terraria-RPC\bin\Publish\TerrariaRPC.exe" --no-gui & start "" "D:\Program Files\Games\Steam\steamapps\common\Terraria\Terraria.exe"
-      ```
-   4. Then hit **Apply**, that'll now launch both TerrariaRPC in headless mode and Terraria.
+
+1.  Navigate to your Terraria.exe, right-click and press "Create Shortcut".
+2.  Right-click to the shortcut then press "Properties".
+3.  On Target field, replace it with the following argument:
+    ```
+    `C:\Windows\System32\cmd.exe /c start "" [Path\To\TerrariaRPC.exe] --no-gui & start "" [Path\To\Terraria.exe]
+    ```
+    _Replace \[Path\To\TerrariaRPC.exe\] & \[Path\To\Terraria.exe\] with their correct paths, don't include brackets, obviously..._\
+    _To copy your application path, hold left-shift while right-clicking the .exe, then press "Copy as path", replace it to \[Path\To\TerrariaRPC.exe\] or \[Path\To\Terraria.exe\] accordingly._\
+    _Terraria need to be in the last argument launch due to it crashing because of UAC prompt from TerrariaRPC._\
+    _Icon will change to cmd.exe, just replace it by clicking "Change Icon" and navigate to Terraria.exe and choose it._\
+    _How this should look, for example on mine:_
+    ```
+    C:\Windows\System32\cmd.exe /c start "" "E:\Documents\Llander\GitHub\Terraria-RPC\bin\Publish\TerrariaRPC.exe" --no-gui & start "" "D:\Program Files\Games\Steam\steamapps\common\Terraria\Terraria.exe"
+    ```
+4.  Then hit **Apply**, that'll now launch both TerrariaRPC in headless mode and Terraria.
 
 **How Headless Mode works:**
+
 - The app will launch completely hidden in the background when you start Terraria.
 - It will automatically wait for Terraria to fully start up.
 - Once you close Terraria, Terraria-RPC will automatically detect that the game has closed and will exit itself cleanly.
@@ -81,15 +85,17 @@ If you want to build the project yourself:
 4. This will compile a self-contained 32-bit application in `bin\Publish`. You can run `TerrariaRPC.exe` from there.
 
 ## Why Administrator mode?
+
 Terraria-RPC reads live Terraria process memory so it can detect your stats, world state, bosses, events, and weather in real time. On Windows, that kind of process inspection is most reliable when the app is launched elevated, especially when Terraria is running in a different privilege context or when access to the process handle is restricted.
 
 In short: administrator mode is used so the reader can attach reliably and keep the Discord status updated without partial reads or failed scans.
 
-See [TECHNICAL_DOCUMENTATION.md](TECHNICAL_DOCUMENTATION.md) for a short summary and a deeper explanation of why elevation is needed.
+See [TECHNICAL_DOCUMENTATION.md](TECHNICAL-DOCUMENTATION.md) for a short summary and a deeper explanation of why elevation is needed.
 
-*This project is also using "agentic codign assist" 🤓, but not in a way like having a "multibillion doolar app" mindset, so I literally carefully curate and orchestrate alongside the build 🤓, if you're against with it just don't use this too 😭 lol...*
+_This project is also using "agentic codign assist" 🤓, but not in a way like having a "multibillion doolar app" mindset, so I literally carefully curate and orchestrate alongside the build 🤓, if you're against with it just don't use this too 😭 lol..._
 
 ## Images
+
 ![](Images/Demos/StatusMainMenu.png)
 ![](Images/Demos/StatusMultiplayerChoosingPlayer.png)
 ![](Images/Demos/StatusMultiplayerJoining.png)
