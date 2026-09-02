@@ -128,8 +128,7 @@ namespace TerrariaRPC.Core
       !ActiveEventIsOoa &&
       (string.Equals(ActiveEventName, "Pumpkin Moon", StringComparison.OrdinalIgnoreCase) ||
        string.Equals(ActiveEventName, "Frost Moon", StringComparison.OrdinalIgnoreCase)) &&
-      ActiveEventIsAtMaxWave &&
-      ActiveEventIsAtMaxProgression;
+      ActiveEventIsAtMaxWave;
     public bool ActiveProgressUsesPts => ActiveEventUsesPoints;
     public bool ActiveProgressIsAtMaxWave => ActiveEventIsAtMaxWave;
     public bool TorchGodActive { get; set; } = false;
@@ -284,6 +283,9 @@ namespace TerrariaRPC.Core
     private ulong _sandstormTypeMT = 0;
     private ulong _dd2EventTypeMT = 0;
     private int _lastKnownOoaWave = -1;
+    private string _moonWaveEvent = "";
+    private int _moonWave = -1;
+    private int _moonLastProgress = -1;
     private int _lastEowMaxHp = 0;
     private int _lastBocMaxHp = 0;
     private int _lastGolemMaxHp = 0;

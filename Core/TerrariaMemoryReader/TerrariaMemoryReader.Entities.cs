@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Diagnostics.Runtime;
@@ -158,6 +158,10 @@ namespace TerrariaRPC.Core
               int moonLordLife = 0, moonLordLifeMax = 0, moonLordCount = 0;
               bool moonLordHitByPlayer = false;
               float moonLordDistanceSq = float.MaxValue;
+              // Martian Saucer: combine its core, cannon, and turret parts.
+              int martianSaucerLife = 0, martianSaucerLifeMax = 0, martianSaucerCount = 0;
+              bool martianSaucerHitByPlayer = false;
+              float martianSaucerDistanceSq = float.MaxValue;
               float playerCenterX = CurrentState.PlayerHasPosition ? CurrentState.PlayerCenterX : 0f;
               float playerCenterY = CurrentState.PlayerHasPosition ? CurrentState.PlayerCenterY : 0f;
               bool hasPlayerCenter = CurrentState.PlayerHasPosition;
@@ -366,6 +370,17 @@ namespace TerrariaRPC.Core
                     continue;
                   }
 
+                  // Martian Saucer: each part is a separate NPC slot.
+                  if (type == 392 || type == 393 || type == 394 || type == 395)
+                  {
+                    martianSaucerLife += life;
+                    martianSaucerLifeMax += lifeMax;
+                    martianSaucerCount++;
+                    martianSaucerHitByPlayer |= hitByPlayer;
+                    martianSaucerDistanceSq = Math.Min(martianSaucerDistanceSq, distanceSq);
+                    continue;
+                  }
+
                   if (isPillar)
                   {
                     lunarEventActive = true;
@@ -513,6 +528,24 @@ namespace TerrariaRPC.Core
                 _lastMoonLordMaxHp = 0;
               }
 
+              if (martianSaucerCount > 0)
+              {
+                ConsiderBoss(new BossCandidate
+                {
+                  Name = "Martian Saucer",
+                  Hp = martianSaucerLife,
+                  MaxHp = martianSaucerLifeMax,
+                  HasShield = false,
+                  Shield = 0,
+                  MaxShield = 0,
+                  HitByPlayer = martianSaucerHitByPlayer,
+                  RecentlyHitByPlayer = GetOrUpdateBossHitTicks("Martian Saucer", martianSaucerLife, martianSaucerHitByPlayer, nowTicks) > 0,
+                  HitByPlayerSinceTicks = GetOrUpdateBossHitTicks("Martian Saucer", martianSaucerLife, martianSaucerHitByPlayer, nowTicks),
+                  DistanceSq = martianSaucerDistanceSq,
+                  IsPillar = false
+                });
+              }
+
               if (config.InGame.BossAndEventPriority.BossPriority.PrioritizeLunarPillarsNearby && !string.IsNullOrEmpty(nearestPillarName) && nearestPillarDistanceSq <= pillarPriorityRangeSq)
               {
                 bestBoss = new BossCandidate
@@ -543,11 +576,66 @@ namespace TerrariaRPC.Core
         }
 
         // 2. Progressive Events (Invasion, Pumpkin/Frost Moon, Old One's Army)
-        int invasionType = mainType.StaticFields.FirstOrDefault(f => f.Name == "invasionType")?.Read<int>(appDomain) ?? 0;
-        int invasionProgress = mainType.StaticFields.FirstOrDefault(f => f.Name == "invasionProgress")?.Read<int>(appDomain) ?? 0;
-        int invasionProgressMax = mainType.StaticFields.FirstOrDefault(f => f.Name == "invasionProgressMax")?.Read<int>(appDomain) ?? 0;
+        int ReadMainInt(params string[] names)
+        {
+          foreach (string name in names)
+          {
+            var field = mainType.StaticFields.FirstOrDefault(f => f.Name == name);
+            if (field == null) continue;
+
+            try { return field.Read<int>(appDomain); } catch { }
+            try { return field.Read<short>(appDomain); } catch { }
+            try { return field.Read<byte>(appDomain); } catch { }
+          }
+
+          return 0;
+        }
+
+        int invasionType = ReadMainInt("invasionType");
+        int invasionProgress = ReadMainInt("invasionProgress");
+        int invasionProgressMax = ReadMainInt("invasionProgressMax");
         // invasionWave is used by OOA and moon events for the current wave number
-        int invasionWave = mainType.StaticFields.FirstOrDefault(f => f.Name == "invasionWave")?.Read<int>(appDomain) ?? 0;
+        int invasionWave = ReadMainInt("invasionWave", "pumpkinMoonWave", "snowMoonWave");
+        bool pumpkinMoonActive = mainType.StaticFields.FirstOrDefault(f => f.Name == "pumpkinMoon")?.Read<bool>(appDomain) ?? false;
+        bool frostMoonActive = mainType.StaticFields.FirstOrDefault(f => f.Name == "snowMoon")?.Read<bool>(appDomain) ?? false;
+        string moonEvent = pumpkinMoonActive ? "Pumpkin Moon" : frostMoonActive ? "Frost Moon" : "";
+        if (moonEvent.Length == 0)
+        {
+          _moonWaveEvent = "";
+          _moonWave = -1;
+          _moonLastProgress = -1;
+        }
+        else if (invasionWave <= 0)
+        {
+          if (!string.Equals(_moonWaveEvent, moonEvent, StringComparison.OrdinalIgnoreCase))
+          {
+            _moonWaveEvent = moonEvent;
+            _moonWave = 1;
+            _moonLastProgress = -1;
+          }
+
+          // Moon progress resets when the next wave begins. Ignore the initial
+          // 0/1 setup value so it cannot create a false extra wave.
+          if (invasionProgressMax > 1 && invasionProgress >= 0)
+          {
+            if (_moonLastProgress >= 0 && invasionProgress < _moonLastProgress)
+            {
+              _moonWave++;
+            }
+
+            _moonLastProgress = invasionProgress;
+          }
+
+          invasionWave = _moonWave;
+        }
+        if (pumpkinMoonActive || frostMoonActive)
+        {
+          Logger.DebugThrottled(
+            "moon-event-fields",
+            $"[Moon Event] Pumpkin={pumpkinMoonActive} Frost={frostMoonActive} " +
+            $"invasionWave={invasionWave} invasionProgress={invasionProgress}/{invasionProgressMax}"
+          );
+        }
 
         // Old One's Army: uses a dedicated DD2Event static class
         var dd2Type = TryGetCachedType(runtime, ref _dd2EventTypeMT, "Terraria.GameContent.Events.DD2Event");
@@ -655,27 +743,33 @@ namespace TerrariaRPC.Core
             CurrentState.ActiveEventIsAtMaxWave = false;
             CurrentState.ActiveEventIsAtMaxProgression = false;
           }
-          else if (mainType.StaticFields.FirstOrDefault(f => f.Name == "pumpkinMoon")?.Read<bool>(appDomain) ?? false)
+          else if (pumpkinMoonActive)
           {
             CurrentState.ActiveEventName = "Pumpkin Moon";
             CurrentState.ActiveEventHasProgress = true;
-            CurrentState.ActiveEventProgress = -1;
+            int moonProgress = invasionProgressMax > 0
+              ? Math.Min(100, Math.Max(0, (int)(invasionProgress * 100.0 / invasionProgressMax)))
+              : -1;
+            CurrentState.ActiveEventProgress = moonProgress;
             CurrentState.ActiveEventWaveNum = invasionWave > 0 ? invasionWave : -1;
-            CurrentState.ActiveEventProgression = invasionProgressMax > 0 ? Math.Min(100, (int)(invasionProgress * 100.0 / invasionProgressMax)) : -1;
+            CurrentState.ActiveEventProgression = moonProgress;
             CurrentState.ActiveEventPoints = invasionProgress;
-            CurrentState.ActiveEventIsAtMaxWave = CurrentState.ActiveEventWaveNum >= 15;
-            CurrentState.ActiveEventIsAtMaxProgression = invasionProgressMax > 0 && invasionProgress >= invasionProgressMax;
+            CurrentState.ActiveEventIsAtMaxWave = CurrentState.ActiveEventWaveNum >= 20;
+            CurrentState.ActiveEventIsAtMaxProgression = CurrentState.ActiveEventIsAtMaxWave;
           }
-          else if (mainType.StaticFields.FirstOrDefault(f => f.Name == "snowMoon")?.Read<bool>(appDomain) ?? false)
+          else if (frostMoonActive)
           {
             CurrentState.ActiveEventName = "Frost Moon";
             CurrentState.ActiveEventHasProgress = true;
-            CurrentState.ActiveEventProgress = -1;
+            int moonProgress = invasionProgressMax > 0
+              ? Math.Min(100, Math.Max(0, (int)(invasionProgress * 100.0 / invasionProgressMax)))
+              : -1;
+            CurrentState.ActiveEventProgress = moonProgress;
             CurrentState.ActiveEventWaveNum = invasionWave > 0 ? invasionWave : -1;
-            CurrentState.ActiveEventProgression = invasionProgressMax > 0 ? Math.Min(100, (int)(invasionProgress * 100.0 / invasionProgressMax)) : -1;
+            CurrentState.ActiveEventProgression = moonProgress;
             CurrentState.ActiveEventPoints = invasionProgress;
             CurrentState.ActiveEventIsAtMaxWave = CurrentState.ActiveEventWaveNum >= 20;
-            CurrentState.ActiveEventIsAtMaxProgression = invasionProgressMax > 0 && invasionProgress >= invasionProgressMax;
+            CurrentState.ActiveEventIsAtMaxProgression = CurrentState.ActiveEventIsAtMaxWave;
           }
         }
 
@@ -814,6 +908,8 @@ namespace TerrariaRPC.Core
               type == 128 || type == 129 || type == 130 || type == 131 ||
               type == 134 || type == 222 || type == 245 || type == 246 || type == 247 || type == 248 ||
               type == 262 || type == 266 || type == 267 ||
+              type == 325 || type == 327 || type == 344 || type == 345 || type == 346 ||
+              type == 392 || type == 393 || type == 394 || type == 395 ||
               type == 370 || type == 396 || type == 397 || type == 398 || type == 439 ||
              type == 491 ||  // Flying Dutchman
              type == 551 || type == 657 || type == 668 || type == 636 ||
@@ -867,6 +963,15 @@ namespace TerrariaRPC.Core
         130 => "Prime Vice",
         131 => "Prime Laser",
         262 => "Plantera",
+        325 => "Mourning Wood",
+        327 => "Pumpking",
+        344 => "Everscream",
+        345 => "Ice Queen",
+        346 => "Santa-NK1",
+        392 => "Martian Saucer",
+        393 => "Martian Saucer",
+        394 => "Martian Saucer",
+        395 => "Martian Saucer",
         245 => "Golem",
         246 => "Golem",
         247 => "Golem",
