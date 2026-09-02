@@ -288,6 +288,49 @@ public partial class MainWindow : Window
     VariablesDialog.ShowOrActivate(this);
   }
 
+  public void OnUpdateIntervalTextChanged(object sender, TextChangedEventArgs e)
+  {
+    if (_isNormalizingSingleLineText || sender is not TextBox textBox)
+      return;
+
+    string digitsOnly = new((textBox.Text ?? "").Where(char.IsDigit).ToArray());
+    if (digitsOnly == textBox.Text)
+      return;
+
+    int caretIndex = Math.Min(textBox.CaretIndex, digitsOnly.Length);
+    _isNormalizingSingleLineText = true;
+    textBox.Text = digitsOnly;
+    textBox.CaretIndex = caretIndex;
+    _isNormalizingSingleLineText = false;
+  }
+
+  public async void OnUpdateIntervalPastingFromClipboard(object sender, RoutedEventArgs e)
+  {
+    if (sender is not TextBox textBox)
+      return;
+
+    var clipboard = Avalonia.Controls.TopLevel.GetTopLevel(textBox)?.Clipboard;
+    string? pastedText = clipboard == null ? null : await clipboard.TryGetTextAsync();
+    if (string.IsNullOrEmpty(pastedText))
+      return;
+
+    string digitsOnly = new(pastedText.Where(char.IsDigit).ToArray());
+    int selectionStart = Math.Min(textBox.SelectionStart, textBox.SelectionEnd);
+    int selectionEnd = Math.Max(textBox.SelectionStart, textBox.SelectionEnd);
+    string currentText = textBox.Text ?? "";
+    selectionStart = Math.Clamp(selectionStart, 0, currentText.Length);
+    selectionEnd = Math.Clamp(selectionEnd, selectionStart, currentText.Length);
+    string newText = currentText[..selectionStart] + digitsOnly + currentText[selectionEnd..];
+
+    _isNormalizingSingleLineText = true;
+    textBox.Text = newText;
+    textBox.CaretIndex = selectionStart + digitsOnly.Length;
+    textBox.SelectionStart = textBox.CaretIndex;
+    textBox.SelectionEnd = textBox.CaretIndex;
+    _isNormalizingSingleLineText = false;
+    e.Handled = true;
+  }
+
   private bool _isSaving = false;
 
   public async void OnSaveClick(object sender, RoutedEventArgs e)

@@ -122,7 +122,7 @@
         <TextBlock Text="Discord" FontWeight="Bold" FontSize="18" />
         <Grid ColumnDefinitions="180,*" RowDefinitions="Auto,Auto" RowSpacing="10">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Update Interval (s):" VerticalAlignment="Center" />
-          <TextBox Name="UpdateIntervalBox" Grid.Row="0" Grid.Column="1" TextChanged="OnSingleLineTextChanged" PastingFromClipboard="OnSingleLinePastingFromClipboard" />
+          <TextBox Name="UpdateIntervalBox" Grid.Row="0" Grid.Column="1" TextChanged="OnUpdateIntervalTextChanged" PastingFromClipboard="OnUpdateIntervalPastingFromClipboard" />
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Client ID:" VerticalAlignment="Center" />
           <TextBox Name="ClientIdBox" Grid.Row="1" Grid.Column="1" TextChanged="OnSingleLineTextChanged" PastingFromClipboard="OnSingleLinePastingFromClipboard" />
         </Grid>

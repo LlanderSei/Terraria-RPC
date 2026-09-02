@@ -140,7 +140,7 @@ namespace TerrariaRPC.Core
             client.Invoke();
             Logger.InfoThrottled(
               "presence-sent",
-              $"Presence sent | Details='{title}' | State='{subtitle1}' | Small='{smallIconUrl}' | Hover='{smallImageText}'"
+              $"Presence sent | Details='{title}' | State='{subtitle1}' | Small='{smallIconUrl}' | Hover='{smallImageText}' | Large='{largeIconUrl}' | LargeHover='{largeImageText}'"
             );
         }
 
