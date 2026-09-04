@@ -22,8 +22,11 @@ namespace TerrariaRPC.Core
     public string IconUrl { get; set; } = "";
   }
 
-  public class ActiveBossEventManager
-  {
+public class ActiveBossEventManager
+{
+    private long _lastRotationSequence = -1;
+    private int _rotationCursor;
+    private (string IconUrl, string HoverText) _lastRotationSnapshot = ("", "");
     private static string ResolveBossText(TerrariaGameState state, RpcConfig config, IconManager iconManager)
     {
       return string.IsNullOrWhiteSpace(config.BossSmallTextTemplate)
@@ -140,11 +143,26 @@ namespace TerrariaRPC.Core
         return (PresenceTemplateEngine.Format(config.SmallImageCustomUrl, state, iconManager), PresenceTemplateEngine.Format(config.SmallImageCustomText, state, iconManager));
       }
 
-      // Rotation mode based on configured status list
-      var slots = new List<(string IconUrl, string HoverText)>();
-
-      foreach (var template in config.InGame.SmallDetails.Templates)
+      if (presenceSequence == _lastRotationSequence)
       {
+        return _lastRotationSnapshot;
+      }
+
+      var templates = config.InGame.SmallDetails.Templates;
+      if (templates.Count == 0)
+      {
+        _lastRotationSequence = presenceSequence;
+        _lastRotationSnapshot = ("", "");
+        return _lastRotationSnapshot;
+      }
+
+      // Keep a cursor over the configured list. Each update evaluates forward
+      // from that cursor and skips empty statuses until one produces content.
+      _rotationCursor %= templates.Count;
+      for (int checkedCount = 0; checkedCount < templates.Count; checkedCount++)
+      {
+        int index = (_rotationCursor + checkedCount) % templates.Count;
+        var template = templates[index];
         if (!template.Enabled)
         {
           continue;
@@ -152,25 +170,20 @@ namespace TerrariaRPC.Core
 
         string iconUrl = PresenceTemplateEngine.Format(template.Image, state, iconManager).Trim();
         string hoverText = PresenceTemplateEngine.Format(template.Text, state, iconManager).Trim();
-
-        if (!string.IsNullOrWhiteSpace(iconUrl) || !string.IsNullOrWhiteSpace(hoverText))
+        if (string.IsNullOrWhiteSpace(iconUrl) && string.IsNullOrWhiteSpace(hoverText))
         {
-          slots.Add((iconUrl, hoverText));
+          continue;
         }
+
+        _rotationCursor = (index + 1) % templates.Count;
+        _lastRotationSequence = presenceSequence;
+        _lastRotationSnapshot = (iconUrl, hoverText);
+        return _lastRotationSnapshot;
       }
 
-      if (slots.Count == 0)
-      {
-        return ("", "");
-      }
-
-      int rotationIndex = 0;
-      if (slots.Count > 1 && presenceSequence > 0)
-      {
-        rotationIndex = (int)((presenceSequence - 1) % slots.Count);
-      }
-
-      return slots[rotationIndex];
+      _lastRotationSequence = presenceSequence;
+      _lastRotationSnapshot = ("", "");
+      return _lastRotationSnapshot;
     }
   }
 }

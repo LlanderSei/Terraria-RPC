@@ -262,6 +262,29 @@ namespace TerrariaRPC.Core
                 {
                   int life = npcObj.ReadField<int>("life");
                   int lifeMax = npcObj.ReadField<int>("lifeMax");
+                  bool moonLordPart = type == 396 || type == 397 || type == 398;
+                  if (moonLordPart && _moonLordPreviousPartHp.TryGetValue(i, out int previousPartHp) &&
+                      previousPartHp > 0 && lifeMax > 0 && previousPartHp <= lifeMax / 10 && life >= lifeMax * 3 / 4)
+                  {
+                    _moonLordDefeatedSlots.Add(i);
+                    Logger.DebugThrottled(
+                      $"moon-lord-part-reset:{i}",
+                      $"[Moon Lord] part slot={i} type={type} reset from {previousPartHp}/{lifeMax} to {life}/{lifeMax}; treating part as defeated");
+                  }
+                  if (moonLordPart && life > 0)
+                    _moonLordPreviousPartHp[i] = life;
+                  if (moonLordPart && life <= 0)
+                  {
+                    _moonLordDefeatedSlots.Add(i);
+                    continue;
+                  }
+
+                  // Terraria can recreate a defeated eye in the same NPC slot
+                  // during a phase transition. Keep that slot excluded for the
+                  // remainder of the current Moon Lord encounter.
+                  if (moonLordPart && _moonLordDefeatedSlots.Contains(i))
+                    continue;
+
                   // Skip dead/inactive NPC slots (life<=0 means the slot is empty or dead)
                   if (life <= 0) continue;
 
@@ -272,15 +295,29 @@ namespace TerrariaRPC.Core
                   long hitByPlayerSinceTicks = GetOrUpdateBossHitTicks(typeName, life, hitByPlayer, nowTicks);
                   bool recentlyHitByPlayer = hitByPlayerSinceTicks > 0 && (nowTicks - hitByPlayerSinceTicks) <= TimeSpan.FromSeconds(3).Ticks;
                   float distanceSq = float.MaxValue;
-                  if (hasPlayerCenter && TryReadVector2Center(npcObj, "position", out float npcCenterX, out float npcCenterY))
+                  float npcCenterX = 0f;
+                  float npcCenterY = 0f;
+                  if (hasPlayerCenter && TryReadVector2Center(npcObj, "position", out npcCenterX, out npcCenterY))
                   {
                     float dx = npcCenterX - playerCenterX;
                     float dy = npcCenterY - playerCenterY;
                     distanceSq = dx * dx + dy * dy;
+                    if (isPillar)
+                    {
+                      Logger.DebugThrottled(
+                        $"pillar-position:{type}",
+                        $"[Pillar Position] {typeName} type={type} player=({playerCenterX:0.0},{playerCenterY:0.0}) pillar=({npcCenterX:0.0},{npcCenterY:0.0}) distanceSq={distanceSq:0.0}");
+                    }
                   }
 
                   // Debug: log every NPC that passes the boss check so we can verify type IDs
                   Logger.Debug($"[BossFound] type={type} boss={isBoss} isPillar={isPillar} life={life}/{lifeMax} name={typeName}");
+                  if (moonLordPart)
+                  {
+                    Logger.DebugThrottled(
+                      $"moon-lord-part:{i}",
+                      $"[Moon Lord Part] slot={i} type={type} life={life}/{lifeMax} defeated={_moonLordDefeatedSlots.Contains(i)}");
+                  }
 
                   if (type == 125 || type == 126)
                   {
@@ -360,7 +397,7 @@ namespace TerrariaRPC.Core
                   }
 
                   // Moon Lord: aggregate the core, head, and both hands.
-                  if (type == 396 || type == 397 || type == 398)
+                  if (moonLordPart)
                   {
                     moonLordLife += life;
                     moonLordLifeMax += lifeMax;
@@ -384,9 +421,13 @@ namespace TerrariaRPC.Core
                   if (isPillar)
                   {
                     lunarEventActive = true;
-                    int shield = GetPillarShield(mainType, appDomain, type);
-                    int maxShield = GetPillarMaxShield(mainType, appDomain);
+                    ClrType shieldType = npcObj.Type ?? mainType;
+                    int shield = GetPillarShield(shieldType, appDomain, type);
+                    int maxShield = GetPillarMaxShield(shieldType, appDomain);
                     bool pillarHasShield = shield > 0;
+                    Logger.DebugThrottled(
+                      $"pillar-shield:{type}",
+                      $"[Pillar Shield] {typeName} type={type} shield={shield} max={maxShield} life={life}/{lifeMax} distanceSq={distanceSq:0}");
 
                     if (distanceSq < nearestPillarDistanceSq)
                     {
@@ -398,20 +439,6 @@ namespace TerrariaRPC.Core
                       nearestPillarHp = life;
                       nearestPillarMaxHp = lifeMax;
                     }
-                    ConsiderBoss(new BossCandidate
-                    {
-                      Name = typeName,
-                      Hp = pillarHasShield ? shield : life,
-                      MaxHp = pillarHasShield ? (maxShield > 0 ? maxShield : shield) : lifeMax,
-                      HasShield = pillarHasShield,
-                      Shield = shield,
-                      MaxShield = maxShield > 0 ? maxShield : shield,
-                      HitByPlayer = hitByPlayer,
-                      RecentlyHitByPlayer = recentlyHitByPlayer,
-                      HitByPlayerSinceTicks = hitByPlayerSinceTicks,
-                      DistanceSq = distanceSq,
-                      IsPillar = true
-                    });
                     continue;
                   }
 
@@ -507,6 +534,7 @@ namespace TerrariaRPC.Core
               // Resolve Moon Lord post-loop.
               if (moonLordCount > 0)
               {
+                _moonLordMissingScans = 0;
                 _lastMoonLordMaxHp = Math.Max(_lastMoonLordMaxHp, moonLordLifeMax);
                 ConsiderBoss(new BossCandidate
                 {
@@ -525,7 +553,17 @@ namespace TerrariaRPC.Core
               }
               else
               {
-                _lastMoonLordMaxHp = 0;
+                _moonLordMissingScans++;
+                // Moon Lord can temporarily remove every part during a phase
+                // transition. Keep the encounter state across that gap and
+                // reset only after a longer absence.
+                if (_moonLordMissingScans >= 15)
+                {
+                  _lastMoonLordMaxHp = 0;
+                  _moonLordDefeatedSlots.Clear();
+                  _moonLordPreviousPartHp.Clear();
+                  _moonLordMissingScans = 0;
+                }
               }
 
               if (martianSaucerCount > 0)
@@ -546,8 +584,34 @@ namespace TerrariaRPC.Core
                 });
               }
 
-              if (config.InGame.BossAndEventPriority.BossPriority.PrioritizeLunarPillarsNearby && !string.IsNullOrEmpty(nearestPillarName) && nearestPillarDistanceSq <= pillarPriorityRangeSq)
+              // Pillars compete as one group. Their internal selection is
+              // always nearest-first; the resulting pillar then competes with
+              // other bosses using the configured priority rules.
+              if (!string.IsNullOrEmpty(nearestPillarName))
               {
+                ConsiderBoss(new BossCandidate
+                {
+                  Name = nearestPillarName,
+                  Hp = nearestPillarHasShield ? nearestPillarShield : nearestPillarHp,
+                  MaxHp = nearestPillarHasShield ? nearestPillarMaxShield : nearestPillarMaxHp,
+                  HasShield = nearestPillarHasShield,
+                  Shield = nearestPillarShield,
+                  MaxShield = nearestPillarMaxShield,
+                  DistanceSq = nearestPillarDistanceSq,
+                  IsPillar = true
+                });
+              }
+
+              var priority = config.InGame.BossAndEventPriority.BossPriority;
+              Logger.DebugThrottled(
+                "pillar-selection-state",
+                $"[Pillar Selection] nearest={nearestPillarName} distanceSq={nearestPillarDistanceSq:0.0} shield={nearestPillarShield}/{nearestPillarMaxShield} lunarNearby={priority.PrioritizeLunarPillarsNearby} targetHit={priority.PrioritizeTargetHitBoss} nearestBoss={priority.PrioritizeNearestBoss} highestHealth={priority.PrioritizeHighestHealthBoss}");
+
+              if (priority.PrioritizeLunarPillarsNearby && !string.IsNullOrEmpty(nearestPillarName) && nearestPillarDistanceSq <= pillarPriorityRangeSq)
+              {
+                Logger.DebugThrottled(
+                  "pillar-selection",
+                  $"[Pillar Selection] selected={nearestPillarName} distanceSq={nearestPillarDistanceSq:0.0} shield={nearestPillarShield}/{nearestPillarMaxShield}");
                 bestBoss = new BossCandidate
                 {
                   Name = nearestPillarName,
@@ -604,6 +668,7 @@ namespace TerrariaRPC.Core
           _moonWaveEvent = "";
           _moonWave = -1;
           _moonLastProgress = -1;
+          _moonLastProgressPercent = -1;
         }
         else if (invasionWave <= 0)
         {
@@ -669,7 +734,7 @@ namespace TerrariaRPC.Core
             // Old One's Army wave mapping based on invasionProgressMax values:
             // Tier 1 (5 waves): W1=60, W2=80, W3=100, W4=120, W5=140
             // Tier 2/3 (7 waves): W1=60, W2=80, W3=100, W4=120, W5=140, W6=180, W7=220
-            int dd2Wave = invasionProgressMax switch
+            int mappedDd2Wave = invasionProgressMax switch
             {
               60 => 1,
               80 => 2,
@@ -683,13 +748,23 @@ namespace TerrariaRPC.Core
 
             // If we are currently in intermission (_timeLeftUntilSpawningBegins > 0 or invasionProgressMax == 1), preserve the current wave number
             int intermissionTime = dd2Type.StaticFields.FirstOrDefault(f => f.Name == "_timeLeftUntilSpawningBegins")?.Read<int>(appDomain) ?? 0;
-            if (dd2Wave > 0)
+            int dd2Wave;
+            if (intermissionTime > 0 || invasionProgressMax <= 1)
             {
-              _lastKnownOoaWave = dd2Wave;
+              dd2Wave = _lastKnownOoaWave > 0 ? _lastKnownOoaWave : mappedDd2Wave;
+            }
+            else if (mappedDd2Wave > 0 && (_lastKnownOoaWave <= 0 || mappedDd2Wave >= _lastKnownOoaWave))
+            {
+              _lastKnownOoaWave = mappedDd2Wave;
+              dd2Wave = mappedDd2Wave;
             }
             else if (_lastKnownOoaWave > 0)
             {
               dd2Wave = _lastKnownOoaWave;
+            }
+            else
+            {
+              dd2Wave = -1;
             }
 
             int pct = (intermissionTime > 0 || invasionProgressMax <= 1) ? 100 : (invasionProgressMax > 0 ? (int)(invasionProgress * 100.0 / invasionProgressMax) : -1);
@@ -747,11 +822,17 @@ namespace TerrariaRPC.Core
           {
             CurrentState.ActiveEventName = "Pumpkin Moon";
             CurrentState.ActiveEventHasProgress = true;
-            int moonProgress = invasionProgressMax > 0
+            int moonProgress = invasionProgressMax <= 1
+              ? (_moonLastProgressPercent >= 95 && invasionWave >= 19 ? 100 : _moonLastProgressPercent)
+              : invasionProgressMax > 0
               ? Math.Min(100, Math.Max(0, (int)(invasionProgress * 100.0 / invasionProgressMax)))
-              : -1;
+              : _moonLastProgressPercent;
+            if (moonProgress >= 0)
+              _moonLastProgressPercent = moonProgress;
             CurrentState.ActiveEventProgress = moonProgress;
-            CurrentState.ActiveEventWaveNum = invasionWave > 0 ? invasionWave : -1;
+            CurrentState.ActiveEventWaveNum = moonProgress >= 100 && invasionWave >= 19
+              ? 20
+              : invasionWave > 0 ? invasionWave : -1;
             CurrentState.ActiveEventProgression = moonProgress;
             CurrentState.ActiveEventPoints = invasionProgress;
             CurrentState.ActiveEventIsAtMaxWave = CurrentState.ActiveEventWaveNum >= 20;
@@ -761,11 +842,17 @@ namespace TerrariaRPC.Core
           {
             CurrentState.ActiveEventName = "Frost Moon";
             CurrentState.ActiveEventHasProgress = true;
-            int moonProgress = invasionProgressMax > 0
+            int moonProgress = invasionProgressMax <= 1
+              ? (_moonLastProgressPercent >= 95 && invasionWave >= 19 ? 100 : _moonLastProgressPercent)
+              : invasionProgressMax > 0
               ? Math.Min(100, Math.Max(0, (int)(invasionProgress * 100.0 / invasionProgressMax)))
-              : -1;
+              : _moonLastProgressPercent;
+            if (moonProgress >= 0)
+              _moonLastProgressPercent = moonProgress;
             CurrentState.ActiveEventProgress = moonProgress;
-            CurrentState.ActiveEventWaveNum = invasionWave > 0 ? invasionWave : -1;
+            CurrentState.ActiveEventWaveNum = moonProgress >= 100 && invasionWave >= 19
+              ? 20
+              : invasionWave > 0 ? invasionWave : -1;
             CurrentState.ActiveEventProgression = moonProgress;
             CurrentState.ActiveEventPoints = invasionProgress;
             CurrentState.ActiveEventIsAtMaxWave = CurrentState.ActiveEventWaveNum >= 20;
@@ -1013,14 +1100,44 @@ namespace TerrariaRPC.Core
       };
 
       if (string.IsNullOrEmpty(fieldName)) return 0;
-      var field = mainType.StaticFields.FirstOrDefault(f => f.Name == fieldName);
-      return field?.Read<int>(appDomain) ?? 0;
+      var field = mainType.StaticFields.FirstOrDefault(f => string.Equals(f.Name, fieldName, StringComparison.OrdinalIgnoreCase));
+      if (field == null)
+      {
+        string available = string.Join(", ", mainType.StaticFields
+          .Where(f => f.Name.Contains("shield", StringComparison.OrdinalIgnoreCase))
+          .Select(f => f.Name));
+        Logger.DebugThrottled(
+          $"pillar-shield-field-miss:{pillarType}",
+          $"[Pillar Shield] missing field '{fieldName}' for type={pillarType}; available shield fields=[{available}]");
+        return 0;
+      }
+
+      try { return field.Read<int>(appDomain); } catch { }
+      try { return field.Read<short>(appDomain); } catch { }
+      try { return field.Read<byte>(appDomain); } catch { }
+      return 0;
     }
 
     private int GetPillarMaxShield(ClrType mainType, ClrAppDomain appDomain)
     {
-      var field = mainType.StaticFields.FirstOrDefault(f => f.Name == "ShieldStrengthTowerMax");
-      int val = field?.Read<int>(appDomain) ?? 0;
+      var field = mainType.StaticFields.FirstOrDefault(f => string.Equals(f.Name, "ShieldStrengthTowerMax", StringComparison.OrdinalIgnoreCase))
+        ?? mainType.StaticFields.FirstOrDefault(f => string.Equals(f.Name, "LunarShieldPowerMax", StringComparison.OrdinalIgnoreCase));
+      int val = 0;
+      if (field != null)
+      {
+        try { val = field.Read<int>(appDomain); } catch { }
+        if (val == 0) try { val = field.Read<short>(appDomain); } catch { }
+        if (val == 0) try { val = field.Read<byte>(appDomain); } catch { }
+      }
+      else
+      {
+        string available = string.Join(", ", mainType.StaticFields
+          .Where(f => f.Name.Contains("shield", StringComparison.OrdinalIgnoreCase))
+          .Select(f => f.Name));
+        Logger.DebugThrottled(
+          "pillar-shield-max-field-miss",
+          $"[Pillar Shield] missing max field 'ShieldStrengthTowerMax'; available shield fields=[{available}]");
+      }
       return val > 0 ? val : 100;
     }
   }

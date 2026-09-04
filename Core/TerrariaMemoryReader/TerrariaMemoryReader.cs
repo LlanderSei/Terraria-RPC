@@ -286,10 +286,14 @@ namespace TerrariaRPC.Core
     private string _moonWaveEvent = "";
     private int _moonWave = -1;
     private int _moonLastProgress = -1;
+    private int _moonLastProgressPercent = -1;
     private int _lastEowMaxHp = 0;
     private int _lastBocMaxHp = 0;
     private int _lastGolemMaxHp = 0;
     private int _lastMoonLordMaxHp = 0;
+    private readonly HashSet<int> _moonLordDefeatedSlots = new();
+    private readonly Dictionary<int, int> _moonLordPreviousPartHp = new();
+    private int _moonLordMissingScans;
     private string _lastAtkItemSignature = "";
     private readonly object _stateLock = new();
 
@@ -334,6 +338,9 @@ namespace TerrariaRPC.Core
       _lastBocMaxHp = 0;
       _lastGolemMaxHp = 0;
       _lastMoonLordMaxHp = 0;
+      _moonLordDefeatedSlots.Clear();
+      _moonLordPreviousPartHp.Clear();
+      _moonLordMissingScans = 0;
       _lastAtkItemSignature = "";
       _bossHitSeenTicks.Clear();
       _bossLastObservedHp.Clear();
