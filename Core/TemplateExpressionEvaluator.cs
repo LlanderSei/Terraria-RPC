@@ -87,6 +87,7 @@ namespace TerrariaRPC.Core
         ["ActiveBossHasShield"] = state.ActiveBossHasShield,
         ["ActiveBossSp"] = state.ActiveBossSp,
         ["ActiveBossMaxSp"] = state.ActiveBossMaxSp,
+        ["AlivePillarCount"] = state.AlivePillarCount,
         ["ActiveEvent"] = state.ActiveEventName,
         ["ActiveProgressiveEvent"] = state.ActiveProgressiveEventName,
         ["ActiveEventProgress"] = state.ActiveEventProgress >= 0 ? state.ActiveEventProgress : null,
@@ -161,6 +162,10 @@ namespace TerrariaRPC.Core
       AndAnd,
       EqualEqual,
       NotEqual,
+      Greater,
+      Less,
+      GreaterEqual,
+      LessEqual,
       Bang,
       Plus,
       Minus,
@@ -229,19 +234,19 @@ namespace TerrariaRPC.Core
 
       private object? ParseEquality()
       {
-        object? left = ParseMembership();
+        object? left = ParseRelational();
         while (true)
         {
           if (Match(TokenType.EqualEqual))
           {
-            object? right = ParseMembership();
+            object? right = ParseRelational();
             left = AreEqual(left, right);
             continue;
           }
 
           if (Match(TokenType.NotEqual))
           {
-            object? right = ParseMembership();
+            object? right = ParseRelational();
             left = !AreEqual(left, right);
             continue;
           }
@@ -250,6 +255,26 @@ namespace TerrariaRPC.Core
         }
 
         return left;
+      }
+
+      private object? ParseRelational()
+      {
+        object? left = ParseMembership();
+        while (true)
+        {
+          TokenType op = Peek().Type;
+          if (op is not (TokenType.Greater or TokenType.Less or TokenType.GreaterEqual or TokenType.LessEqual)) return left;
+          Advance();
+          object? right = ParseMembership();
+          if (!TryNumber(left, out double l) || !TryNumber(right, out double r)) { left = false; continue; }
+          left = op switch
+          {
+            TokenType.Greater => l > r,
+            TokenType.Less => l < r,
+            TokenType.GreaterEqual => l >= r,
+            _ => l <= r
+          };
+        }
       }
 
       private object? ParseMembership()
@@ -425,6 +450,18 @@ namespace TerrariaRPC.Core
         return true;
       }
 
+      private void Advance() => _position++;
+
+      private static bool TryNumber(object? value, out double number)
+      {
+        if (value is string text)
+          return double.TryParse(text, NumberStyles.Any, CultureInfo.InvariantCulture, out number);
+        if (value is bool boolean) { number = boolean ? 1 : 0; return true; }
+        if (value is IConvertible) { number = ToNumber(value); return true; }
+        number = 0;
+        return false;
+      }
+
       private void Consume(TokenType type)
       {
         if (!Match(type))
@@ -527,6 +564,16 @@ namespace TerrariaRPC.Core
           {
             tokens.Add(new Token(TokenType.EqualEqual, "==", 0));
             i += 2;
+            continue;
+          }
+
+          if (c == '>' || c == '<')
+          {
+            bool equal = i + 1 < expression.Length && expression[i + 1] == '=';
+            tokens.Add(new Token(equal
+              ? (c == '>' ? TokenType.GreaterEqual : TokenType.LessEqual)
+              : (c == '>' ? TokenType.Greater : TokenType.Less), equal ? $"{c}=" : c.ToString(), 0));
+            i += equal ? 2 : 1;
             continue;
           }
 

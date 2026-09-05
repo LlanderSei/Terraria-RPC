@@ -24,9 +24,16 @@ namespace TerrariaRPC.Core
 
 public class ActiveBossEventManager
 {
+    private static int _rotationResetVersion;
     private long _lastRotationSequence = -1;
     private int _rotationCursor;
     private (string IconUrl, string HoverText) _lastRotationSnapshot = ("", "");
+    private int _observedRotationResetVersion;
+
+    public static void ResetRotation()
+    {
+      _rotationResetVersion++;
+    }
     private static string ResolveBossText(TerrariaGameState state, RpcConfig config, IconManager iconManager)
     {
       return string.IsNullOrWhiteSpace(config.BossSmallTextTemplate)
@@ -146,6 +153,14 @@ public class ActiveBossEventManager
       if (presenceSequence == _lastRotationSequence)
       {
         return _lastRotationSnapshot;
+      }
+
+      if (_observedRotationResetVersion != _rotationResetVersion)
+      {
+        _rotationCursor = 0;
+        _lastRotationSequence = -1;
+        _lastRotationSnapshot = ("", "");
+        _observedRotationResetVersion = _rotationResetVersion;
       }
 
       var templates = config.InGame.SmallDetails.Templates;

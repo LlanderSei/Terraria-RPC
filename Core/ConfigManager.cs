@@ -556,6 +556,7 @@ namespace TerrariaRPC.Core
         var options = new JsonSerializerOptions { WriteIndented = true };
         var json = JsonSerializer.Serialize(CurrentConfig, options);
         File.WriteAllText(ConfigPath, json);
+        ActiveBossEventManager.ResetRotation();
         Console.WriteLine("Config saved.");
       }
       catch (Exception ex)

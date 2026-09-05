@@ -64,6 +64,7 @@ public partial class VariablesDialog : Window
     new("{{ActiveBossHasShield}}", "True when the active boss uses shield-style health", "True or False", "#ce93d8"),
     new("{{ActiveBossSp}}", "Current shield points for shielded bosses and pillars", "Integer", "#ce93d8"),
     new("{{ActiveBossMaxSp}}", "Maximum shield points for shielded bosses and pillars", "Integer", "#ce93d8"),
+    new("{{AlivePillarCount}}", "Number of currently alive Celestial Pillars", "Integer (0-4)", "#ce93d8"),
     new("{{ActiveBossHp}}", "Current HP of active boss or pillar shield/hp", "Integer", "#ce93d8"),
     new("{{ActiveBossMaxHp}}", "Max HP of active boss or pillar shield/hp", "Integer", "#ce93d8"),
     new("{{ActiveEvent}}", "Name of active event (e.g. Goblin Invasion)", "String or empty", "#ce93d8"),

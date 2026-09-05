@@ -97,6 +97,7 @@ namespace TerrariaRPC.Core
     public int ActiveBossHp { get; set; } = 0;
     public int ActiveBossMaxHp { get; set; } = 0;
     public bool ActiveBossHasShield { get; set; } = false;
+    public int AlivePillarCount { get; set; }
     public int ActiveBossSp { get; set; } = 0;
     public int ActiveBossMaxSp { get; set; } = 0;
     public string ActiveBossText
@@ -241,6 +242,7 @@ namespace TerrariaRPC.Core
         ActiveBossHp = ActiveBossHp,
         ActiveBossMaxHp = ActiveBossMaxHp,
         ActiveBossHasShield = ActiveBossHasShield,
+        AlivePillarCount = AlivePillarCount,
         ActiveBossSp = ActiveBossSp,
         ActiveBossMaxSp = ActiveBossMaxSp,
         ActiveEventName = ActiveEventName,
@@ -283,6 +285,11 @@ namespace TerrariaRPC.Core
     private ulong _sandstormTypeMT = 0;
     private ulong _dd2EventTypeMT = 0;
     private int _lastKnownOoaWave = -1;
+    private int _lastOoaProgress = -1;
+    private int _lastOoaProgressMax = -1;
+    private bool _ooaWaveReconciled;
+    private bool _moonWaveReconciled;
+    private bool _betsyFoundThisScan;
     private string _moonWaveEvent = "";
     private int _moonWave = -1;
     private int _moonLastProgress = -1;
@@ -293,6 +300,7 @@ namespace TerrariaRPC.Core
     private int _lastMoonLordMaxHp = 0;
     private readonly HashSet<int> _moonLordDefeatedSlots = new();
     private readonly Dictionary<int, int> _moonLordPreviousPartHp = new();
+    private readonly HashSet<int> _moonLordKnownPartSlots = new();
     private int _moonLordMissingScans;
     private string _lastAtkItemSignature = "";
     private readonly object _stateLock = new();
@@ -334,12 +342,18 @@ namespace TerrariaRPC.Core
       CurrentState.TorchGodActive = false;
 
       _lastKnownOoaWave = -1;
+      _lastOoaProgress = -1;
+      _lastOoaProgressMax = -1;
+      _ooaWaveReconciled = false;
+      _moonWaveReconciled = false;
+      _betsyFoundThisScan = false;
       _lastEowMaxHp = 0;
       _lastBocMaxHp = 0;
       _lastGolemMaxHp = 0;
       _lastMoonLordMaxHp = 0;
       _moonLordDefeatedSlots.Clear();
       _moonLordPreviousPartHp.Clear();
+      _moonLordKnownPartSlots.Clear();
       _moonLordMissingScans = 0;
       _lastAtkItemSignature = "";
       _bossHitSeenTicks.Clear();

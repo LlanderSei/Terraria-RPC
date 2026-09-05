@@ -105,6 +105,7 @@ namespace TerrariaRPC.Core
       CurrentState.ActiveBossHp = 0;
       CurrentState.ActiveBossMaxHp = 0;
       CurrentState.ActiveBossHasShield = false;
+      CurrentState.AlivePillarCount = 0;
       CurrentState.ActiveBossSp = 0;
       CurrentState.ActiveBossMaxSp = 0;
 
@@ -122,6 +123,7 @@ namespace TerrariaRPC.Core
       CurrentState.ActivePeacefulEventName = "";
       CurrentState.ActivePeacefulEventValue = "";
       CurrentState.ActiveWeatherName = "";
+      _betsyFoundThisScan = false;
       bool lunarEventActive = false;
       long nowTicks = DateTime.UtcNow.Ticks;
 
@@ -174,6 +176,7 @@ namespace TerrariaRPC.Core
               int nearestPillarShield = 0;
               int nearestPillarMaxShield = 0;
               float nearestPillarDistanceSq = float.MaxValue;
+              var moonLordPresentSlots = new HashSet<int>();
 
               bool UseHitPriority()
               {
@@ -253,6 +256,14 @@ namespace TerrariaRPC.Core
 
                 bool isBoss = npcObj.ReadField<bool>("boss");
                 int type = npcObj.ReadField<int>("type");
+                if (type == 551)
+                  _betsyFoundThisScan = true;
+                bool moonLordPart = type == 396 || type == 397 || type == 398;
+                if (moonLordPart)
+                {
+                  _moonLordKnownPartSlots.Add(i);
+                  moonLordPresentSlots.Add(i);
+                }
 
                 // Corrected pillar IDs (confirmed by user from Terraria wiki):
                 // 493=LunarTowerStardust, 517=LunarTowerSolar, 507=LunarTowerNebula, 422=LunarTowerVortex
@@ -262,7 +273,6 @@ namespace TerrariaRPC.Core
                 {
                   int life = npcObj.ReadField<int>("life");
                   int lifeMax = npcObj.ReadField<int>("lifeMax");
-                  bool moonLordPart = type == 396 || type == 397 || type == 398;
                   if (moonLordPart && _moonLordPreviousPartHp.TryGetValue(i, out int previousPartHp) &&
                       previousPartHp > 0 && lifeMax > 0 && previousPartHp <= lifeMax / 10 && life >= lifeMax * 3 / 4)
                   {
@@ -420,6 +430,7 @@ namespace TerrariaRPC.Core
 
                   if (isPillar)
                   {
+                    CurrentState.AlivePillarCount++;
                     lunarEventActive = true;
                     ClrType shieldType = npcObj.Type ?? mainType;
                     int shield = GetPillarShield(shieldType, appDomain, type);
@@ -534,6 +545,11 @@ namespace TerrariaRPC.Core
               // Resolve Moon Lord post-loop.
               if (moonLordCount > 0)
               {
+                foreach (int knownSlot in _moonLordKnownPartSlots)
+                {
+                  if (!moonLordPresentSlots.Contains(knownSlot))
+                    _moonLordDefeatedSlots.Add(knownSlot);
+                }
                 _moonLordMissingScans = 0;
                 _lastMoonLordMaxHp = Math.Max(_lastMoonLordMaxHp, moonLordLifeMax);
                 ConsiderBoss(new BossCandidate
@@ -562,6 +578,7 @@ namespace TerrariaRPC.Core
                   _lastMoonLordMaxHp = 0;
                   _moonLordDefeatedSlots.Clear();
                   _moonLordPreviousPartHp.Clear();
+                  _moonLordKnownPartSlots.Clear();
                   _moonLordMissingScans = 0;
                 }
               }
@@ -665,23 +682,40 @@ namespace TerrariaRPC.Core
         string moonEvent = pumpkinMoonActive ? "Pumpkin Moon" : frostMoonActive ? "Frost Moon" : "";
         if (moonEvent.Length == 0)
         {
+          _moonWaveReconciled = false;
           _moonWaveEvent = "";
           _moonWave = -1;
           _moonLastProgress = -1;
           _moonLastProgressPercent = -1;
         }
-        else if (invasionWave <= 0)
+        else
         {
           if (!string.Equals(_moonWaveEvent, moonEvent, StringComparison.OrdinalIgnoreCase))
           {
             _moonWaveEvent = moonEvent;
             _moonWave = 1;
             _moonLastProgress = -1;
+            _moonWaveReconciled = false;
+          }
+
+          if (!_moonWaveReconciled)
+          {
+            _moonWave = invasionProgressMax switch
+            {
+              25 => 1, 40 => 2, 50 => 3, 80 => 4, 100 => 5,
+              160 => 6, 180 => 7, 200 => 8, 250 => 9, 300 => 10,
+              375 => 11, 450 => 12, 525 => 13, 675 => 14, 850 => 15,
+              1025 => 16, 1325 => 17, 1550 => 18, 2000 => 19,
+              0 => 20,
+              _ => invasionWave > 0 ? invasionWave : 1
+            };
+            _moonWaveReconciled = true;
+            Logger.Debug($"[Moon Reconcile] event={moonEvent} denominator={invasionProgressMax} -> wave={_moonWave}");
           }
 
           // Moon progress resets when the next wave begins. Ignore the initial
           // 0/1 setup value so it cannot create a false extra wave.
-          if (invasionProgressMax > 1 && invasionProgress >= 0)
+          if (invasionWave <= 0 && invasionProgressMax > 1 && invasionProgress >= 0)
           {
             if (_moonLastProgress >= 0 && invasionProgress < _moonLastProgress)
             {
@@ -731,40 +765,50 @@ namespace TerrariaRPC.Core
             }
             Logger.Debug($"[OOA Diagnostics] Main.invasionWave={invasionWave}, invasionType={invasionType}, invasionProgress={invasionProgress}/{invasionProgressMax} | DD2Fields: {string.Join(", ", fieldValues)}");
 
-            // Old One's Army wave mapping based on invasionProgressMax values:
-            // Tier 1 (5 waves): W1=60, W2=80, W3=100, W4=120, W5=140
-            // Tier 2/3 (7 waves): W1=60, W2=80, W3=100, W4=120, W5=140, W6=180, W7=220
-            int mappedDd2Wave = invasionProgressMax switch
-            {
-              60 => 1,
-              80 => 2,
-              100 => 3,
-              120 => 4,
-              140 => 5,
-              180 => 6,
-              220 => 7,
-              _ => -1
-            };
-
-            // If we are currently in intermission (_timeLeftUntilSpawningBegins > 0 or invasionProgressMax == 1), preserve the current wave number
             int intermissionTime = dd2Type.StaticFields.FirstOrDefault(f => f.Name == "_timeLeftUntilSpawningBegins")?.Read<int>(appDomain) ?? 0;
+            int progressPercent = invasionProgressMax > 0
+              ? (int)(invasionProgress * 100.0 / invasionProgressMax)
+              : -1;
             int dd2Wave;
-            if (intermissionTime > 0 || invasionProgressMax <= 1)
+            if (invasionProgressMax <= 1)
             {
-              dd2Wave = _lastKnownOoaWave > 0 ? _lastKnownOoaWave : mappedDd2Wave;
-            }
-            else if (mappedDd2Wave > 0 && (_lastKnownOoaWave <= 0 || mappedDd2Wave >= _lastKnownOoaWave))
-            {
-              _lastKnownOoaWave = mappedDd2Wave;
-              dd2Wave = mappedDd2Wave;
-            }
-            else if (_lastKnownOoaWave > 0)
-            {
-              dd2Wave = _lastKnownOoaWave;
+              // 0/1 and 1/1 are OOA setup/intermission markers, not waves.
+              dd2Wave = _lastKnownOoaWave > 0 ? _lastKnownOoaWave : 0;
             }
             else
             {
-              dd2Wave = -1;
+              if (!_ooaWaveReconciled)
+              {
+                _lastKnownOoaWave = invasionProgressMax switch
+                {
+                  60 => 1,
+                  80 => 2,
+                  100 when _betsyFoundThisScan => 7,
+                  100 => 3,
+                  120 => 4,
+                  140 => 5,
+                  180 => 6,
+                  _ => _lastKnownOoaWave > 0 ? _lastKnownOoaWave : 1
+                };
+                _ooaWaveReconciled = true;
+                Logger.Debug($"[OOA Reconcile] denominator={invasionProgressMax} Betsy={_betsyFoundThisScan} -> wave={_lastKnownOoaWave}");
+              }
+
+              if (_lastKnownOoaWave <= 0)
+                _lastKnownOoaWave = 1;
+              else if (_lastOoaProgressMax > 1
+                && invasionProgressMax != _lastOoaProgressMax
+                && _lastOoaProgress >= 80
+                && progressPercent <= 10)
+                _lastKnownOoaWave = Math.Min(7, _lastKnownOoaWave + 1);
+              else if (_lastOoaProgress >= 95 && progressPercent <= 5)
+                _lastKnownOoaWave = Math.Min(7, _lastKnownOoaWave + 1);
+
+              // Process valid 0/n samples even during spawn intermission; that is
+              // where the next OOA wave reset is observable.
+              _lastOoaProgress = progressPercent;
+              _lastOoaProgressMax = invasionProgressMax;
+              dd2Wave = _lastKnownOoaWave;
             }
 
             int pct = (intermissionTime > 0 || invasionProgressMax <= 1) ? 100 : (invasionProgressMax > 0 ? (int)(invasionProgress * 100.0 / invasionProgressMax) : -1);
@@ -773,18 +817,24 @@ namespace TerrariaRPC.Core
             CurrentState.ActiveEventProgress = pct >= 0 ? Math.Min(100, pct) : -1;
             CurrentState.ActiveEventProgression = CurrentState.ActiveEventProgress;
             CurrentState.ActiveEventPoints = invasionProgress;
-            CurrentState.ActiveEventWaveNum = dd2Wave > 0 ? dd2Wave : 1;
+            CurrentState.ActiveEventWaveNum = dd2Wave;
             CurrentState.ActiveEventIsAtMaxWave = false;
             CurrentState.ActiveEventIsAtMaxProgression = CurrentState.ActiveEventProgress >= 100;
           }
           else
           {
             _lastKnownOoaWave = -1;
+            _lastOoaProgress = -1;
+            _lastOoaProgressMax = -1;
+            _ooaWaveReconciled = false;
           }
         }
         else
         {
           _lastKnownOoaWave = -1;
+          _lastOoaProgress = -1;
+          _lastOoaProgressMax = -1;
+          _ooaWaveReconciled = false;
         }
 
         if (!dd2Active)
@@ -822,7 +872,9 @@ namespace TerrariaRPC.Core
           {
             CurrentState.ActiveEventName = "Pumpkin Moon";
             CurrentState.ActiveEventHasProgress = true;
-            int moonProgress = invasionProgressMax <= 1
+            int moonProgress = invasionProgressMax == 0
+              ? 100
+              : invasionProgressMax <= 1
               ? (_moonLastProgressPercent >= 95 && invasionWave >= 19 ? 100 : _moonLastProgressPercent)
               : invasionProgressMax > 0
               ? Math.Min(100, Math.Max(0, (int)(invasionProgress * 100.0 / invasionProgressMax)))
@@ -830,7 +882,7 @@ namespace TerrariaRPC.Core
             if (moonProgress >= 0)
               _moonLastProgressPercent = moonProgress;
             CurrentState.ActiveEventProgress = moonProgress;
-            CurrentState.ActiveEventWaveNum = moonProgress >= 100 && invasionWave >= 19
+            CurrentState.ActiveEventWaveNum = invasionProgressMax == 0 || (moonProgress >= 100 && invasionWave >= 19)
               ? 20
               : invasionWave > 0 ? invasionWave : -1;
             CurrentState.ActiveEventProgression = moonProgress;
@@ -842,7 +894,9 @@ namespace TerrariaRPC.Core
           {
             CurrentState.ActiveEventName = "Frost Moon";
             CurrentState.ActiveEventHasProgress = true;
-            int moonProgress = invasionProgressMax <= 1
+            int moonProgress = invasionProgressMax == 0
+              ? 100
+              : invasionProgressMax <= 1
               ? (_moonLastProgressPercent >= 95 && invasionWave >= 19 ? 100 : _moonLastProgressPercent)
               : invasionProgressMax > 0
               ? Math.Min(100, Math.Max(0, (int)(invasionProgress * 100.0 / invasionProgressMax)))
@@ -850,7 +904,7 @@ namespace TerrariaRPC.Core
             if (moonProgress >= 0)
               _moonLastProgressPercent = moonProgress;
             CurrentState.ActiveEventProgress = moonProgress;
-            CurrentState.ActiveEventWaveNum = moonProgress >= 100 && invasionWave >= 19
+            CurrentState.ActiveEventWaveNum = invasionProgressMax == 0 || (moonProgress >= 100 && invasionWave >= 19)
               ? 20
               : invasionWave > 0 ? invasionWave : -1;
             CurrentState.ActiveEventProgression = moonProgress;
@@ -1002,7 +1056,7 @@ namespace TerrariaRPC.Core
              type == 551 || type == 657 || type == 668 || type == 636 ||
              // Old One's Army bosses — IDs verified from Terraria wiki
              type == 564 || type == 565 ||  // Dark Mage Tier 1 & Tier 3
-             type == 576;                   // Ogre
+             type == 576 || type == 577;    // Ogre (Tier 2 / Tier 3)
     }
 
     private string GetNpcTypeName(ClrRuntime runtime, ClrAppDomain appDomain, ClrObject npcObj, int type)
@@ -1081,6 +1135,7 @@ namespace TerrariaRPC.Core
         564 => "Dark Mage",
         565 => "Dark Mage",
         576 => "Ogre",
+        577 => "Ogre",
         491 => "Flying Dutchman",
         _ => $"Boss ({type})"
       };
